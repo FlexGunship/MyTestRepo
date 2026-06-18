@@ -7,9 +7,9 @@ onboard and earn graduation.
 |---|---|---|---|---|
 | **CM** | Claude Code (manager seat) | n/a (process docs direct to `main`) | authors specs; does not write deliverables | active (bootstrapping the project) |
 | **CC** | Claude Code | `feature/cc-<slug>` | integrator-merged (onboarding); cross-model integrator for Codex work | **onboarded** (2026-06-18); authored spec 001 vertical slice |
-| **CC2** | Claude Code (2nd instance) | `feature/cc2-<slug>` | integrator-merged (no self-merge) | pending onboarding (the project) |
+| **CC2** | Claude Code (2nd instance) | `feature/cc2-<slug>` | integrator-merged (no self-merge) | **onboarding** (activated 2026-06-18, spec 005) — parallel dev + integration |
 | **CX** | Codex | `feature/cx-<slug>` | integrator-merged (onboarding) | **onboarded** (2026-06-18) |
-| **CX2** | Codex (2nd instance) | `feature/cx2-<slug>` | integrator-merged (no self-merge) | pending onboarding (the project) |
+| **CX2** | Codex (2nd instance) | `feature/cx2-<slug>` | integrator-merged (no self-merge) | **onboarding** (activated 2026-06-18, spec 006) — parallel dev + integration |
 | **GB** | Grok (xAI), `grok-build` model, native image-gen | `feature/gb-<slug>` | integrator-merged (no self-merge until graduation) | **onboarding** (activated 2026-06-18, spec 003) — 3rd model: tie-breaker / `GB`-tagged dev / image-gen. See [`grok-build.md`](grok-build.md). |
 
 ## Rules
