@@ -3,14 +3,14 @@
 The current roster of surfaces, their branch namespace, and merge authority. Updated as surfaces
 onboard and earn graduation.
 
-| Surface | Runtime | Branch namespace | Merge authority | Status (2026-06-12) |
+| Surface | Runtime | Branch namespace | Merge authority | Status (2026-06-18) |
 |---|---|---|---|---|
 | **CM** | Claude Code (manager seat) | n/a (process docs direct to `main`) | authors specs; does not write deliverables | active (bootstrapping the project) |
-| **CC** | Claude Code | `feature/cc-<slug>` | integrator-merged (onboarding); cross-model integrator for Codex work | pending onboarding (the project) |
+| **CC** | Claude Code | `feature/cc-<slug>` | integrator-merged (onboarding); cross-model integrator for Codex work | **onboarded** (2026-06-18); authored spec 001 vertical slice |
 | **CC2** | Claude Code (2nd instance) | `feature/cc2-<slug>` | integrator-merged (no self-merge) | pending onboarding (the project) |
-| **CX** | Codex | `feature/cx-<slug>` | integrator-merged (onboarding) | pending onboarding (the project) |
+| **CX** | Codex | `feature/cx-<slug>` | integrator-merged (onboarding) | **onboarded** (2026-06-18) |
 | **CX2** | Codex (2nd instance) | `feature/cx2-<slug>` | integrator-merged (no self-merge) | pending onboarding (the project) |
-| **GB** | Grok (xAI), native image-gen | `feature/gb-<slug>` | integrator-merged (no self-merge until graduation) | **optional 5th surface** — activate via onboarding when a 3rd model is wanted (tie-breaker / `GB`-tagged dev / image-gen). See [`grok-build.md`](grok-build.md). |
+| **GB** | Grok (xAI), `grok-build` model, native image-gen | `feature/gb-<slug>` | integrator-merged (no self-merge until graduation) | **onboarding** (activated 2026-06-18, spec 003) — 3rd model: tie-breaker / `GB`-tagged dev / image-gen. See [`grok-build.md`](grok-build.md). |
 
 ## Rules
 - **One spec routes to exactly the one surface** named in its filename. Integration/review by another
