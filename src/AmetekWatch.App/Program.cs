@@ -32,7 +32,7 @@ return RunDaemon(args, composition);
 // --- One-shot: run a single sweep, persist, deliver the digest, print a summary, exit 0. ---
 static async Task<int> RunOnceAsync(SweepComposition c)
 {
-    var host = new SweepHost(c.Searcher, c.Triage, c.Store, c.Options, c.Notifier);
+    var host = new SweepHost(c.Searcher, c.Triage, c.Store, c.Options, c.Notifier, c.Runner);
 
     var digest = await host.RunOnceAsync(CancellationToken.None);
     var persisted = await c.Store.GetAllAsync(CancellationToken.None);
@@ -77,7 +77,7 @@ static int RunDaemon(string[] args, SweepComposition c)
     {
         var logger = sp.GetRequiredService<ILoggerFactory>().CreateLogger("AmetekWatch.Sweep");
         IDigestNotifier notifier = new LoggingDigestNotifier(c.Notifier, logger);
-        return new SweepHost(c.Searcher, c.Triage, c.Store, c.Options, notifier);
+        return new SweepHost(c.Searcher, c.Triage, c.Store, c.Options, notifier, c.Runner);
     });
 
     builder.Services.AddHostedService<SweepBackgroundService>();

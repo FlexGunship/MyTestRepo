@@ -18,4 +18,24 @@ public sealed record PipelineOptions
     /// deterministic fakes.
     /// </summary>
     public bool UseRealApi { get; init; }
+
+    /// <summary>
+    /// Retry policy for transient pipeline failures, bound from <c>Pipeline:Retry</c>. Only active
+    /// when <see cref="UseRealApi"/> is <c>true</c> — the deterministic fakes never fail, so the fake
+    /// tier always uses a no-retry policy regardless of these values.
+    /// </summary>
+    public RetryOptions Retry { get; init; } = new();
+}
+
+/// <summary>
+/// Retry knobs bound from <c>Pipeline:Retry</c>. Defaults mirror the shipped config (3 attempts,
+/// 500&#8201;ms base backoff) so the section may be omitted.
+/// </summary>
+public sealed record RetryOptions
+{
+    /// <summary>Total attempts including the first (so 3 means up to two retries). Minimum 1.</summary>
+    public int MaxAttempts { get; init; } = 3;
+
+    /// <summary>Base backoff in milliseconds; the wait before retry <c>n</c> is <c>BaseDelayMs * 2^(n-1)</c>.</summary>
+    public int BaseDelayMs { get; init; } = 500;
 }

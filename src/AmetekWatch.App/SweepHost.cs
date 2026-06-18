@@ -22,23 +22,33 @@ public sealed class SweepHost
     private readonly IFindingStore _store;
     private readonly SweepOptions _options;
     private readonly IDigestNotifier _notifier;
+    private readonly SweepRunner _runner;
 
     /// <param name="notifier">
     /// Where the worth-reporting digest is delivered after each sweep. Optional — defaults to a
     /// <see cref="NullDigestNotifier"/> (deliver nowhere), preserving the prior no-notifier behaviour.
+    /// </param>
+    /// <param name="runner">
+    /// The configured <see cref="SweepRunner"/> to drive each sweep. Optional — defaults to a plain
+    /// <c>new SweepRunner(searcher, triage, store)</c> (no retry, full digest), exactly the prior
+    /// behaviour, so existing construction is unchanged. <c>SweepComposer</c> supplies one with the
+    /// retry policy + new-only + triage-error wiring baked in. This is the App-side composed-runner
+    /// injection point — blessed by spec 043-CC as the correct, backward-compatible seam.
     /// </param>
     public SweepHost(
         ISearcher searcher,
         ITriageDecider triage,
         IFindingStore store,
         SweepOptions options,
-        IDigestNotifier? notifier = null)
+        IDigestNotifier? notifier = null,
+        SweepRunner? runner = null)
     {
         _searcher = searcher ?? throw new ArgumentNullException(nameof(searcher));
         _triage = triage ?? throw new ArgumentNullException(nameof(triage));
         _store = store ?? throw new ArgumentNullException(nameof(store));
         _options = options ?? throw new ArgumentNullException(nameof(options));
         _notifier = notifier ?? new NullDigestNotifier();
+        _runner = runner ?? new SweepRunner(_searcher, _triage, _store);
     }
 
     /// <summary>
@@ -49,8 +59,7 @@ public sealed class SweepHost
     /// </summary>
     public async Task<IReadOnlyList<TriagedFinding>> RunOnceAsync(CancellationToken ct = default)
     {
-        var runner = new SweepRunner(_searcher, _triage, _store);
-        var digest = await runner.RunAsync(new SweepQuery(_options.Subject), ct).ConfigureAwait(false);
+        var digest = await _runner.RunAsync(new SweepQuery(_options.Subject), ct).ConfigureAwait(false);
         await _notifier.NotifyAsync(digest, ct).ConfigureAwait(false);
         return digest;
     }
