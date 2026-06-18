@@ -158,3 +158,25 @@ deliverables go branch → gate → **cross-model** integrate (author ≠ integr
   `dotnet build -c Release` (0 warn), `dotnet format --verify-no-changes`, `dotnet test` (36/36 — was
   32; AmetekWatch.Tests 25→29 + 4 storage + 3 web). `<Version>` stays `0.1.0` (internal). Auth still
   deferred.
+- 2026-06-18 — **Spec 017-CC dashboard reads the shared SQLite store built (on branch; CX2 integrates).**
+  The web dashboard now serves findings from the **same durable SQLite store** the App sweep host (015)
+  persists to, closing the offline v1 loop (sweep writes → dashboard shows). `AmetekWatch.Web` now
+  references `AmetekWatch.Storage`; `Program` reads `Storage:DbPath` from config (default
+  `ametek-watch.db`, matching App's `appsettings.json`) and registers `SqliteFindingStore(dbPath)` as
+  the `IFindingStore` — **replacing** the in-memory fake-sweep seeding (the `InMemoryFindingStore` +
+  `SweepRunner`/`FakeSearcher`/`FakeTriageDecider` startup seed is gone, and the top-level program is no
+  longer async). `SqliteFindingStore`'s schema-on-init means a missing/empty DB yields `[]` rather than
+  crashing. Both endpoints (`GET /api/findings` JSON most-recent-`DiscoveredAt`-first; `GET /` HTML table)
+  and localhost/read-only behaviour are unchanged. `tests/AmetekWatch.Web.Tests` rewritten to drive the
+  real app via `WebApplicationFactory<Program>` against a **temp SQLite DB**: the factory overrides
+  `Storage:DbPath` through `IHost.ConfigureHostConfiguration` (early enough that `Program` reads it at
+  build time — app-configuration sources added later are too late in the minimal-hosting model), and the
+  tests pre-seed the DB via `SqliteFindingStore`. 2 tests with hand-computed oracles: three findings
+  seeded out-of-order (+9h/+11h/+10h) come back most-recent-first (+11h,+10h,+9h) with fields round-tripped,
+  and a fresh schema-only DB returns `[]` (the empty-DB/no-crash case). The obsolete in-memory-seed tests
+  (3 of them) are removed; can-fail confirmed (broke the ordering oracle → 1 fail) and reverted. The test
+  `.csproj` gained an explicit `ProjectReference` to `AmetekWatch.Storage` (used directly to seed). No
+  Anthropic/HTTP deps; the sweep host (015), non-Web source, and the `.sln` are untouched. Gate green on
+  Linux .NET 8.0.422: `dotnet build -c Release` (0 warn), `dotnet format --verify-no-changes`,
+  `dotnet test` (35/35 — was 36; AmetekWatch.Web.Tests 3→2 + 29 Core + 4 storage). `<Version>` stays
+  `0.1.0` (internal). Auth still deferred.

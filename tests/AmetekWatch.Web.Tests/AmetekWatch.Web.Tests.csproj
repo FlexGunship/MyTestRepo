@@ -24,6 +24,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\AmetekWatch.Web\AmetekWatch.Web.csproj" />
     <ProjectReference Include="..\..\src\AmetekWatch.Core\AmetekWatch.Core.csproj" />
+    <ProjectReference Include="..\..\src\AmetekWatch.Storage\AmetekWatch.Storage.csproj" />
   </ItemGroup>
 
 </Project>
