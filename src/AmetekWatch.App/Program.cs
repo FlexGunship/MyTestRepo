@@ -22,8 +22,36 @@ var config = new ConfigurationBuilder()
 
 var options = config.GetSection("Sweep").Get<SweepOptions>() ?? new SweepOptions();
 var pipeline = config.GetSection("Pipeline").Get<PipelineOptions>() ?? new PipelineOptions();
-var notify = config.GetSection("Notify").Get<NotifyOptions>() ?? new NotifyOptions();
 var dbPath = config["Storage:DbPath"] ?? "ametek-watch.db";
+
+// Bind Notify explicitly: EmailOptions (030) is a positional record whose required parameters make
+// the binder throw on an empty/partial Email section. An incomplete email config is exactly the
+// "fall back gracefully" case (Decision 2), so we bind it tolerantly here rather than letting it crash.
+var notify = new NotifyOptions
+{
+    Sink = config["Notify:Sink"] ?? "File",
+    DigestPath = config["Notify:DigestPath"],
+    Email = TryBindEmail(config.GetSection("Notify:Email")),
+};
+
+static AmetekWatch.Core.Notify.EmailOptions? TryBindEmail(IConfigurationSection section)
+{
+    if (!section.Exists())
+    {
+        return null;
+    }
+
+    try
+    {
+        return section.Get<AmetekWatch.Core.Notify.EmailOptions>();
+    }
+    catch (InvalidOperationException)
+    {
+        // A partial section (e.g. missing recipients) cannot bind to the required record; treat it as
+        // an incomplete config — DigestNotifierFactory will warn and fall back to the no-op sink.
+        return null;
+    }
+}
 
 // --- Select the pipeline tier. Real adapters only when configured AND a key is present; otherwise
 //     warn (if asked for real) and fall back to the fakes so the exe still runs and demonstrates.
@@ -56,10 +84,10 @@ else
     activePipeline = "FAKE (deterministic; Pipeline:UseRealApi=false)";
 }
 
-// --- Digest sink: write a file when a path is configured, else deliver nowhere.
-IDigestNotifier notifier = string.IsNullOrWhiteSpace(notify.DigestPath)
-    ? new NullDigestNotifier()
-    : new FileDigestNotifier(notify.DigestPath, options.Subject, () => DateTimeOffset.UtcNow);
+// --- Digest sink: selected by Notify:Sink (File / Email / None). An incomplete/disabled email
+//     config (or an unrecognized sink) warns and falls back to the no-op sink — no crash.
+IDigestNotifier notifier = DigestNotifierFactory.Create(
+    notify, options.Subject, () => DateTimeOffset.UtcNow, Console.WriteLine);
 
 var store = new SqliteFindingStore(dbPath);
 var host = new SweepHost(searcher, triage, store, options, notifier);
@@ -70,8 +98,7 @@ var persisted = await store.GetAllAsync(CancellationToken.None);
 Console.WriteLine($"AMETEK Watch — sweep for \"{options.Subject}\"");
 Console.WriteLine($"Pipeline:               {activePipeline}");
 Console.WriteLine($"Store (SQLite):         {dbPath}");
-Console.WriteLine(
-    $"Digest sink:            {(string.IsNullOrWhiteSpace(notify.DigestPath) ? "(none)" : notify.DigestPath)}");
+Console.WriteLine($"Digest sink:            {notify.Sink} -> {notifier.GetType().Name}");
 Console.WriteLine($"Persisted findings:     {persisted.Count}");
 Console.WriteLine($"Worth-reporting digest: {digest.Count}");
 Console.WriteLine();
