@@ -305,3 +305,27 @@ deliverables go branch → gate → **cross-model** integrate (author ≠ integr
   (76/76 — was 73; AmetekWatch.Tests 37→40). `<Version>` stays `0.1.0` (internal) — **but this capstone closes
   the end-to-end product loop; FLAGGED to the Manager as a candidate first user-facing milestone (e.g. 0.1.0 →
   1.0.0 + a `CHANGELOG`), Manager's call.** Auth wiring remains the only deferred step (a live key).
+- 2026-06-18 — **Spec 030-CC2 email digest sink built (on branch; CX2 integrates).** Adds the charter's
+  open **email delivery hook** the same offline-buildable way the file sink (025) and Anthropic adapter
+  (019) were: a pure renderer + a testable transport seam + a thin live wrapper untested until creds
+  exist. (1) **Refactor, no behaviour change:** extracted the friendly digest-Markdown rendering out of
+  `FileDigestNotifier` (025) into a new pure `DigestMarkdownRenderer` (`src/AmetekWatch.Core/Notify/`);
+  `FileDigestNotifier` now composes it. The four existing 025 `FileDigestNotifier` tests pass **unchanged**;
+  friendly-names-only discipline preserved (no internal type/field/enum names leak). (2) **Email seam:**
+  `IEmailSender` (`Task SendAsync(string subject, string body, CancellationToken ct)`); `SmtpEmailSender :
+  IEmailSender` (BCL `System.Net.Mail.SmtpClient`, no NuGet, configured from `EmailOptions`, `EnableSsl`,
+  SMTP password read **only** from env `AMETEK_WATCH_SMTP_PASSWORD` — never hardcoded/committed; the **only**
+  code not unit-tested, mirroring the live Anthropic wrapper); `EmailDigestNotifier : IDigestNotifier` (ctor
+  `IEmailSender` + `EmailOptions` + shared `DigestMarkdownRenderer` + subject + injected timestamp provider —
+  **no `DateTimeOffset.Now`**; renders the body via the shared renderer, sends a friendly subject `"AMETEK
+  Watch — N findings worth reporting"` / `"… — nothing to report"` for an empty digest, which still sends a
+  clean notice — documented); `EmailOptions` record (`Enabled, SmtpHost, SmtpPort, From, To[],
+  SubjectPrefix`). (3) **Tests:** 5 new in `tests/AmetekWatch.Tests/EmailDigestNotifierTests.cs` with a fake
+  `IEmailSender` capturing the send (no live SMTP), hand-computed full-string oracles — seeded two-item digest
+  (exact friendly subject + body, +02:00 stamp normalises to 14:30 UTC, asserts no internal names leak in
+  subject or body), empty "nothing to report" case, singular-noun subject, and the renderer renders the
+  expected Markdown for seeded + empty digests. Can-fail confirmed (flipped the subject count oracle → 1 fail)
+  and reverted. **No App/Program/DI wiring, no live email, no Anthropic projects touched, no `.sln` edit** (all
+  deferred to a later tiny wiring spec). Gate green on Linux .NET 8.0.422: `dotnet build -c Release` (0 warn),
+  `dotnet format --verify-no-changes`, `dotnet test` (81/81 — was 76; AmetekWatch.Tests 40→45 + 4 storage + 30
+  Anthropic + 2 web). `<Version>` stays `0.1.0` (internal). Live SMTP path not exercised; auth still deferred.
