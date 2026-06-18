@@ -1,8 +1,11 @@
-# CLAUDE.md — <PROJECT NAME>
+# CLAUDE.md — AMETEK Watch
 
-> **Starter-kit skeleton.** On first boot, Claude Manager fills in the project name, the pinned gate
-> commands, and the Status & Roadmap from the [first-boot bootstrap](wiki/bootstrap/first-boot.md).
-> Until then this is the generic operating context every agent reads at the start of every session.
+> **AMETEK Watch** — a Windows C#/.NET app that periodically sweeps the web for fresh, relevant
+> material about AMETEK, Inc. (NYSE: AME), weighted toward personal/social opinion pieces and
+> reputable financial reports. A two-tier Claude pipeline does the work: **Sonnet 4.6** searches and
+> aggregates (via the server-side `web_search` tool); **Opus 4.8** triages each finding for
+> importance, relevance, and whether it's worth reporting. The authoritative What/Who/Why/Scope is the
+> [product charter](wiki/product-charter.md).
 
 This file is the **dev-facing onboarding pointer** and the canonical **Status & Roadmap**. Every agent
 reads it at the start of every working session, after its role doc.
@@ -22,28 +25,39 @@ reads it at the start of every working session, after its role doc.
 `main` is the single integration trunk and is **always green**. The only path to `main` for a
 deliverable is a **gated `--no-ff` merge from a feature branch**, performed by an **independent
 cross-model integrator** (author ≠ integrator). The gate is **flexible — it is whatever proves this
-project correct**, pinned here at first boot. The two proven shapes (see
-[git & gates](wiki/contracts/git-and-gates.md)):
+project correct**. **Mode: build** (C#/.NET). Pinned gate — run each command **separately, never
+chained** (a chain hides which step failed):
 
 ```bash
-# Build projects (writing software): run each separately, never chained.
-<build>        # compiles/bundles cleanly
-<typecheck>    # static types pass
-<lint>         # linter clean
-<test>         # full suite green, assertions that can actually fail
-
-# Documentation / reverse-engineering projects (describing a read-only subject):
-python3 tools/doc_check.py     # links resolve, structure sane, no leftover placeholders
-#  + the real teeth: an independent source-grounded review — every non-trivial claim cites
-#    reference/<path>:<line>; the integrator spot-checks each citation (tools/cite_audit.py helps).
+# Build-and-test gate for AMETEK Watch (C#/.NET). Run each SEPARATELY.
+dotnet build -c Release              # compiles cleanly; the compiler is the typecheck
+dotnet format --verify-no-changes    # style/format clean (stands in for lint)
+dotnet test                          # full suite green; assertions that can actually fail
 ```
 
-A project may run **both** (a build project whose docs are also cited). Doc-only ships (reports, Q&A,
-wiki edits) go straight to `main` (no review gate). Pin the exact commands here once the toolchain exists.
+The Windows deliverable is produced by a single-file publish (artifact, not part of the gate):
+
+```bash
+dotnet publish -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -o dist
+# -> dist/ametek-watch.exe
+```
+
+Doc-only ships (specs, prompts, reports, Q&A, wiki edits) go straight to `main` (no review gate);
+deliverables go branch → gate → **cross-model** integrate (author ≠ integrator). There is no docs/
+`doc_check.py` gate on product code — `doc_check.py` only guards the wiki.
 
 ## Status & Roadmap
 > Dev-facing changelog. ~5–15 lines per entry. Updated as a step in every ship. (User-facing notes,
 > if the project releases a product, go in `CHANGELOG.md`.)
 
 ### Unreleased
-- _(empty — first real entry is written when work begins)_
+- 2026-06-18 — **Bring-up.** Project chartered as *AMETEK Watch* (see
+  [`wiki/product-charter.md`](wiki/product-charter.md)): a Windows C#/.NET exe that periodically sweeps
+  the web for AMETEK news (opinion/social pieces + reputable financial reports), two-tier Claude
+  pipeline — Sonnet 4.6 (`claude-sonnet-4-6`) searches/aggregates via the server-side `web_search`
+  tool, Opus 4.8 (`claude-opus-4-8`) triages. Storage: local SQLite + a local **web-UI** dashboard;
+  email delivery hooks left open (out of v1). CC + CX surfaces onboarded. **Gate pinned**
+  (dotnet build / format / test). **Anthropic API auth is deferred** — the pipeline is built behind
+  interfaces with deterministic fakes until a late wiring spec, so the whole system is buildable and
+  testable offline now. Spec **001-CC** (vertical slice: solution scaffold + pipeline seams + green
+  gate) authored and ready to dispatch.

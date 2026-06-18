@@ -49,6 +49,10 @@ to additional sinks (email, etc.) without a rewrite.
 - **Toolchain:** C# / .NET, native Windows executable. Official Anthropic **.NET SDK** (`dotnet add
   package Anthropic`; `AnthropicClient`, API key from the `ANTHROPIC_API_KEY` environment variable —
   never hardcoded or committed).
+- **Auth deferred (owner decision).** Wiring the real Anthropic SDK + API key is **the last step**.
+  Until then the pipeline lives behind interfaces (`ISearcher`, `ITriageDecider`) with deterministic
+  **fake** implementations, so the entire app builds, runs, and tests **offline** with no key. The
+  real SDK-backed implementations drop into those seams in a late spec without disturbing the rest.
 - **Two-tier model pipeline** (exact IDs, grounded against the current API reference):
   - **Searcher / aggregator — Claude Sonnet 4.6 (`claude-sonnet-4-6`).** 1M context, 64K max output,
     $3 / $15 per 1M input/output tokens. Runs the routine sweeps.
@@ -62,8 +66,9 @@ to additional sinks (email, etc.) without a rewrite.
   API behind a custom tool — Brave/Bing/SerpAPI — stays the documented fallback if specific-engine
   control is ever required; pinned at spec time.)*
 - **Storage & output:** a **local database (SQLite)** of findings + verdicts, with a small local
-  **dashboard** for browsing and trend-tracking over time. Built with **delivery hooks left open for
-  adding email** later (the digest is a content artifact the decider produces; the sink is pluggable).
+  **web-UI dashboard** (served by the exe over localhost) for browsing and trend-tracking over time.
+  Built with **delivery hooks left open for adding email** later (the digest is a content artifact the
+  decider produces; the sink is pluggable).
 - **Scheduling:** periodic sweeps on a configurable cadence (mechanism — built-in timer vs. Windows
   Task Scheduler — pinned at spec time). Default cadence TBD with owner (likely daily).
 - **Cost lever:** the stable triage instruction (rubric + AMETEK context) is a **prompt-cache** prefix
@@ -99,18 +104,22 @@ to additional sinks (email, etc.) without a rewrite.
 - The gate is green and `ametek-watch.exe` builds and runs a full sweep end-to-end on Windows.
 - Triage decisions are inspectable (each finding shows the decider's importance/relevance verdict).
 
+## Resolved
+- **Dashboard form** → **local web UI** served by the exe (owner, 2026-06-18). *(WPF/WinForms not used.)*
+- **Anthropic auth** → **deferred to the last step** (owner, 2026-06-18); build behind fakes until then.
+- **Gate pinning** → done — the build-and-test gate is pinned in [`/CLAUDE.md`](../CLAUDE.md) and the
+  Status & Roadmap is started.
+
 ## Open (resolve early)
 - **Name** — "AMETEK Watch" / `ametek-watch.exe` is a working title; confirm or replace.
-- **API access** — confirm an Anthropic API key + budget are available (precondition for any pipeline
-  work). Confirm rough acceptable cost per sweep so the searcher's search-tool `MaxUses` and triage
-  batch size can be sized.
-- **Gate pinning** — write the exact gate commands above into `/CLAUDE.md` and start its Status &
-  Roadmap (first-boot Step 3) before the first real spec.
+- **API budget** *(deferred with auth, but informs sizing)* — rough acceptable cost per sweep, to size
+  the searcher's search-tool `MaxUses` and the triage batch size when the real SDK is wired.
 - **Cadence & scheduling mechanism** — default sweep interval; built-in timer vs. Task Scheduler.
-- **Dashboard form** — local web UI served by the exe vs. a native WPF/WinForms window.
 - **Reputable-institution list** — which financial-report sources count as "reputable" (seed list for
   the triage rubric).
 
 ## Changelog
+- 2026-06-18 — Resolved dashboard form (local web UI) and deferred Anthropic auth to the final step
+  (build behind fakes until then); pinned the gate + started Status & Roadmap in `/CLAUDE.md`.
 - 2026-06-18 — Charter written at first boot from the owner interview (build mode; C#/.NET Windows exe;
   Sonnet 4.6 searcher → Opus 4.8 decider; web-search server tool; SQLite + dashboard with email hooks).
