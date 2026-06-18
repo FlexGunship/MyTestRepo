@@ -71,3 +71,16 @@ deliverables go branch → gate → **cross-model** integrate (author ≠ integr
   `dotnet build -c Release` (0 warn), `dotnet format --verify-no-changes`, `dotnet test` (7/7). Windows
   `dist/ametek-watch.exe` cross-compiled (`win-x64`, self-contained, single-file) — built, not executed
   (Windows runtime verification deferred). No Anthropic SDK / network dependency yet (auth still deferred).
+- 2026-06-18 — **Spec 008-CC2 local web-UI dashboard built (on branch; CX integrates).** New
+  `src/AmetekWatch.Web` (`Microsoft.NET.Sdk.Web`, `net8.0`, references `AmetekWatch.Core`): an ASP.NET
+  minimal-API dashboard. At startup it seeds an `InMemoryFindingStore` by running one fake sweep through
+  Core (`FakeSearcher` + `FakeTriageDecider` + `SweepRunner`) and registers the populated store as
+  `IFindingStore` (DI) — independent of the SQLite work (007); a later spec swaps the registration.
+  Endpoints: `GET /api/findings` (JSON, most-recent `DiscoveredAt` first) and `GET /` (a minimal
+  server-rendered HTML table: category, title, url, worth-reporting, rationale). Read-only, binds
+  `localhost` only, no auth. New xUnit project `tests/AmetekWatch.Web.Tests` drives the real app via
+  `WebApplicationFactory<Program>` (`Microsoft.AspNetCore.Mvc.Testing` 8.0.17; `Program` made
+  `public partial`): 3 tests with hand-computed oracles (4 persisted after URL-dedupe, most-recent-first
+  order, the 3 worth-reporting findings). Both new projects appended to `AmetekWatch.sln`. Gate green on
+  .NET 8.0.422: `dotnet build -c Release` (0 warn), `dotnet format --verify-no-changes`, `dotnet test`
+  (10/10 = 7 prior + 3 new). `AmetekWatch.App` and the slice test project untouched; no SQLite.
