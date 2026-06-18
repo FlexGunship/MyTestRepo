@@ -35,11 +35,16 @@ smoke test passes and the exe runs on Windows.
    `Messages.Create`; the live `web_search` searcher will emit `pause_turn`/`server_tool_use` continuations
    that must be looped (re-send with the assistant turn appended). **Deferred deliberately — it can only be
    verified against the live API**, so do it in the live-verification session. (Noted in 024's XML-docs.)
-3. **Email digest sink** (charter's "email hooks") — *(in flight as spec 030 at write time)*: an `IEmailSender`
-   seam + tested `EmailDigestNotifier` + untested live `SmtpEmailSender`, same pattern as the adapters.
-4. **Scheduling / Windows packaging** — wrap `SweepHost.RunAsync` as a proper hosted service / Task Scheduler
-   job; run the `win-x64` single-file exe on actual Windows.
-5. **Open charter items (owner):** confirm the project name, default sweep cadence, and the reputable-source
+3. ~~Email digest sink~~ — **DONE** (spec 030 landed `e4ab708`): shared `DigestMarkdownRenderer` +
+   `IEmailSender`/`EmailDigestNotifier` (tested via a fake sender) + live `SmtpEmailSender` (password from
+   env `AMETEK_WATCH_SMTP_PASSWORD`, untested until creds exist). **Not yet wired into `Program`** — wiring it
+   (and selecting file-vs-email via `EmailOptions.Enabled`) is a small follow-up like the capstone.
+4. **Scheduling / Windows packaging** — `SweepHost.RunAsync` already loops on the interval when
+   `RunOnce=false`; wrap it as a proper hosted service / Task Scheduler job; run the `win-x64` single-file exe
+   on actual Windows (built, never executed on Windows — dev hosts are Linux).
+5. **Wire the email sink into `Program`** (small) — select `EmailDigestNotifier` vs `FileDigestNotifier` vs
+   `NullDigestNotifier` by config; compose with the digest delivery the capstone already wired.
+6. **Open charter items (owner):** confirm the project name, default sweep cadence, and the reputable-source
    seed list for the triage rubric.
 
 ## Gotchas (carry-forward)
