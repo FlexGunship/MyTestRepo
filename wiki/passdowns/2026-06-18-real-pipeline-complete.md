@@ -39,11 +39,13 @@ smoke test passes and the exe runs on Windows.
    `IEmailSender`/`EmailDigestNotifier` (tested via a fake sender) + live `SmtpEmailSender` (password from
    env `AMETEK_WATCH_SMTP_PASSWORD`, untested until creds exist). **Not yet wired into `Program`** — wiring it
    (and selecting file-vs-email via `EmailOptions.Enabled`) is a small follow-up like the capstone.
-4. **Scheduling / Windows packaging** — `SweepHost.RunAsync` already loops on the interval when
-   `RunOnce=false`; wrap it as a proper hosted service / Task Scheduler job; run the `win-x64` single-file exe
-   on actual Windows (built, never executed on Windows — dev hosts are Linux).
-5. **Wire the email sink into `Program`** (small) — select `EmailDigestNotifier` vs `FileDigestNotifier` vs
-   `NullDigestNotifier` by config; compose with the digest delivery the capstone already wired.
+4. ~~Wire the email sink into `Program`~~ — **DONE** (spec 032 landed `860873f`): a `DigestNotifierFactory`
+   selects `File`/`Email`/`None` by `Notify:Sink` (incomplete/disabled email → `NullDigestNotifier` + a
+   warning). Digest delivery is now **config-complete**.
+5. **Scheduling hosted-service / Windows packaging** *(top remaining offline item)* — `SweepHost.RunAsync`
+   already loops on the interval when `RunOnce=false`; wrap it as a proper `IHostedService` / Task Scheduler
+   job with graceful shutdown; then run the `win-x64` single-file exe on **actual Windows** (built, never
+   executed on Windows — dev hosts are Linux). The hosted-service part is offline-buildable; the Windows run is not.
 6. **Open charter items (owner):** confirm the project name, default sweep cadence, and the reputable-source
    seed list for the triage rubric.
 
