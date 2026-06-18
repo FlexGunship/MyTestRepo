@@ -22,6 +22,9 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\AmetekWatch.Core\AmetekWatch.Core.csproj" />
+    <!-- 015-CC2: SweepHostTests exercises SweepHost (App) over a SQLite store; App brings in
+         AmetekWatch.Storage and AmetekWatch.Core transitively. No new test project / no .sln edit. -->
+    <ProjectReference Include="..\..\src\AmetekWatch.App\AmetekWatch.App.csproj" />
   </ItemGroup>
 
 </Project>
