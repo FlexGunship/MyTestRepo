@@ -1,5 +1,3 @@
-using System.Globalization;
-using System.Text;
 using AmetekWatch.Core.Model;
 
 namespace AmetekWatch.Core.Notify;
@@ -9,8 +7,10 @@ namespace AmetekWatch.Core.Notify;
 /// a heading naming the watched subject and the run time, a worth-reporting count, then
 /// one section per item with its kind, title, link, and the assessment behind it.
 /// <para>
-/// The rendered text uses friendly labels only — no internal type or property names leak
-/// into the file. The file is overwritten on every run (the latest digest replaces the last).
+/// The friendly Markdown is produced by the shared <see cref="DigestMarkdownRenderer"/> (so
+/// the rendering lives in one place, reused by the email sink) — friendly labels only, no
+/// internal type or property names leak. The file is overwritten on every run (the latest
+/// digest replaces the last).
 /// </para>
 /// <para>
 /// The run timestamp is injected (a provider), never read from the ambient clock, so the
@@ -22,6 +22,7 @@ public sealed class FileDigestNotifier : IDigestNotifier
     private readonly string _outputPath;
     private readonly string _subject;
     private readonly Func<DateTimeOffset> _timestampProvider;
+    private readonly DigestMarkdownRenderer _renderer;
 
     /// <param name="outputPath">File to write (and overwrite) the rendered digest to.</param>
     /// <param name="subject">The watched subject named in the heading, e.g. <c>"AMETEK"</c>.</param>
@@ -37,62 +38,13 @@ public sealed class FileDigestNotifier : IDigestNotifier
         _subject = subject ?? throw new ArgumentNullException(nameof(subject));
         _timestampProvider = timestampProvider
             ?? throw new ArgumentNullException(nameof(timestampProvider));
+        _renderer = new DigestMarkdownRenderer();
     }
 
     public Task NotifyAsync(IReadOnlyList<TriagedFinding> digest, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(digest);
-        var markdown = Render(digest, _subject, _timestampProvider());
+        var markdown = _renderer.Render(digest, _subject, _timestampProvider());
         return File.WriteAllTextAsync(_outputPath, markdown, ct);
     }
-
-    /// <summary>Builds the friendly Markdown report. Pure — no I/O, no clock.</summary>
-    internal static string Render(
-        IReadOnlyList<TriagedFinding> digest,
-        string subject,
-        DateTimeOffset runTime)
-    {
-        var when = runTime
-            .ToUniversalTime()
-            .ToString("dddd, dd MMMM yyyy HH:mm 'UTC'", CultureInfo.InvariantCulture);
-
-        var sb = new StringBuilder();
-        sb.Append("# ").Append(subject).AppendLine(" Watch digest");
-        sb.AppendLine();
-        sb.Append("_Generated ").Append(when).AppendLine("_");
-        sb.AppendLine();
-
-        if (digest.Count == 0)
-        {
-            sb.AppendLine("Nothing to report this run.");
-            return sb.ToString();
-        }
-
-        var noun = digest.Count == 1 ? "item" : "items";
-        sb.Append("**").Append(digest.Count).Append(' ').Append(noun)
-            .AppendLine(" worth reporting.**");
-        sb.AppendLine();
-
-        foreach (var item in digest)
-        {
-            var finding = item.Finding;
-            sb.Append("## ").Append(FriendlyKind(finding.Category)).Append(": ")
-                .AppendLine(finding.Title);
-            sb.AppendLine();
-            sb.Append("- Link: ").AppendLine(finding.Url);
-            sb.Append("- Why it matters: ").AppendLine(item.Verdict.Rationale);
-            sb.AppendLine();
-        }
-
-        return sb.ToString();
-    }
-
-    /// <summary>Maps a finding's kind to a reader-facing label (no internal enum names).</summary>
-    private static string FriendlyKind(FindingCategory category) => category switch
-    {
-        FindingCategory.OpinionSocial => "Opinion / Social",
-        FindingCategory.FinancialReport => "Financial Report",
-        FindingCategory.Other => "Other",
-        _ => "Other",
-    };
 }
