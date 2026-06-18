@@ -1,26 +1,26 @@
 using System.Net;
 using AmetekWatch.Core.Model;
 using AmetekWatch.Core.Pipeline;
+using AmetekWatch.Storage;
 
 // AMETEK Watch — local web-UI dashboard (read-only).
 //
-// Browses triaged findings from an IFindingStore. Until the durable SQLite store (spec 007)
-// lands, the store is seeded once at startup by running a single fake sweep through Core
-// (FakeSearcher + FakeTriageDecider + SweepRunner) — no Anthropic SDK, no network, no API key.
-// A later spec swaps the registration to the SQLite store behind this same seam.
+// Browses triaged findings from the shared durable SQLite store (spec 017): the same database
+// the sweep host (spec 015) persists to, so the dashboard displays what the sweeper actually
+// wrote. The DB path comes from config (Storage:DbPath, default ametek-watch.db, matching the
+// App's appsettings.json). SqliteFindingStore creates its schema on init, so a missing/empty DB
+// yields an empty dashboard rather than a crash. Still offline — no Anthropic SDK, no network,
+// no API key.
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Read-only and local: bind loopback only, no auth.
 builder.WebHost.UseUrls("http://localhost:5080");
 
-// Seed the store with one fake sweep. SweepRunner persists EVERY triaged survivor (the digest
-// it returns is just the worth-reporting subset); the dashboard shows everything persisted.
-var store = new InMemoryFindingStore();
-var runner = new SweepRunner(new FakeSearcher(), new FakeTriageDecider(), store);
-await runner.RunAsync(new SweepQuery(Subject: "AMETEK"), CancellationToken.None);
-
-builder.Services.AddSingleton<IFindingStore>(store);
+// Read the durable SQLite store from config and register it behind the IFindingStore seam.
+// Schema-on-init means a fresh/empty DB serves [] rather than crashing.
+var dbPath = builder.Configuration["Storage:DbPath"] ?? "ametek-watch.db";
+builder.Services.AddSingleton<IFindingStore>(new SqliteFindingStore(dbPath));
 
 var app = builder.Build();
 
