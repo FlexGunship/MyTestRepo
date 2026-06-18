@@ -10,6 +10,7 @@
   <ItemGroup>
     <ProjectReference Include="..\AmetekWatch.Core\AmetekWatch.Core.csproj" />
     <ProjectReference Include="..\AmetekWatch.Storage\AmetekWatch.Storage.csproj" />
+    <ProjectReference Include="..\AmetekWatch.Anthropic\AmetekWatch.Anthropic.csproj" />
   </ItemGroup>
 
   <ItemGroup>

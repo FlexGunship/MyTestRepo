@@ -27,6 +27,9 @@ ametek-watch.db
 *.db-shm
 *.db-wal
 
+# Local digest file written by the sweep host (not source).
+ametek-watch-digest.md
+
 # --- OS / editor cruft ---
 .DS_Store
 Thumbs.db
