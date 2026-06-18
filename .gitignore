@@ -22,6 +22,11 @@ obj/
 dist/
 *.user
 
+# Local SQLite runtime store written by the sweep host (not source).
+ametek-watch.db
+*.db-shm
+*.db-wal
+
 # --- OS / editor cruft ---
 .DS_Store
 Thumbs.db

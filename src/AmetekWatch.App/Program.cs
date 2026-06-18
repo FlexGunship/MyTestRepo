@@ -1,20 +1,30 @@
-using AmetekWatch.Core.Model;
+using AmetekWatch.App;
 using AmetekWatch.Core.Pipeline;
+using AmetekWatch.Storage;
+using Microsoft.Extensions.Configuration;
 
-// AMETEK Watch — vertical-slice console host.
+// AMETEK Watch — config-driven sweep host.
 //
-// Wires the orchestrator from deterministic fakes (no Anthropic SDK, no network, no API key),
-// runs one sweep for "AMETEK", and prints the digest. This host is what later becomes the
-// Windows service / UI host once the real pipeline tiers are wired in.
+// Binds appsettings.json -> SweepOptions, constructs a durable SQLite store plus the deterministic
+// fakes (no Anthropic SDK, no network, no API key — the real pipeline tiers are the final deferred
+// spec), runs one sweep (RunOnce default true so the CLI terminates), and prints the digest.
 
-var store = new InMemoryFindingStore();
-var runner = new SweepRunner(new FakeSearcher(), new FakeTriageDecider(), store);
-var query = new SweepQuery(Subject: "AMETEK");
+var config = new ConfigurationBuilder()
+    .SetBasePath(AppContext.BaseDirectory)
+    .AddJsonFile("appsettings.json", optional: false, reloadOnChange: false)
+    .Build();
 
-var digest = await runner.RunAsync(query, CancellationToken.None);
+var options = config.GetSection("Sweep").Get<SweepOptions>() ?? new SweepOptions();
+var dbPath = config["Storage:DbPath"] ?? "ametek-watch.db";
+
+var store = new SqliteFindingStore(dbPath);
+var host = new SweepHost(new FakeSearcher(), new FakeTriageDecider(), store, options);
+
+var digest = await host.RunOnceAsync(CancellationToken.None);
 var persisted = await store.GetAllAsync(CancellationToken.None);
 
-Console.WriteLine($"AMETEK Watch — sweep for \"{query.Subject}\"");
+Console.WriteLine($"AMETEK Watch — sweep for \"{options.Subject}\"");
+Console.WriteLine($"Store (SQLite):         {dbPath}");
 Console.WriteLine($"Persisted findings:     {persisted.Count}");
 Console.WriteLine($"Worth-reporting digest: {digest.Count}");
 Console.WriteLine();

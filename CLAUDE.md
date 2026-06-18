@@ -132,3 +132,29 @@ deliverables go branch → gate → **cross-model** integrate (author ≠ integr
   `.csproj` are all untouched. Gate green on Linux .NET 8.0.422: `dotnet build -c Release` (0 warn),
   `dotnet format --verify-no-changes`, `dotnet test` (25/25 — 18 Core [7 slice + 11 searcher] + 4 storage
   + 3 web). `<Version>` stays `0.1.0` (internal). Auth still deferred.
+- 2026-06-18 — **Spec 015-CC2 App config-driven sweep host + SQLite persistence built (on branch;
+  CX integrates).** `AmetekWatch.App` is now a runnable, config-driven sweep host that does real
+  end-to-end work (still with the **fake** searcher/decider — real Anthropic tiers remain the final
+  deferred spec). App now references `AmetekWatch.Storage` and adds
+  `Microsoft.Extensions.Configuration[.Json/.Binder]` 8.0.0. New `src/AmetekWatch.App/appsettings.json`
+  (`Sweep: {Subject:"AMETEK", IntervalMinutes:1440, RunOnce:true}`, `Storage:{DbPath:"ametek-watch.db"}`,
+  copied to output) binds to a new `SweepOptions` record. New `SweepHost` (ctor: `ISearcher`,
+  `ITriageDecider`, `IFindingStore`, `SweepOptions`): `RunOnceAsync(ct)` drives one `SweepRunner` sweep,
+  persists every triaged survivor, returns the worth-reporting digest; `RunAsync(ct)` loops run-once →
+  `Task.Delay(IntervalMinutes)` until cancelled when `RunOnce==false` (cancellation-friendly; no hidden
+  clock — discovery timestamps come from the searcher tier). `Program` binds config → `SweepOptions`,
+  constructs `SqliteFindingStore(DbPath)` + the fakes, runs `RunOnceAsync`, prints the digest, exits 0
+  (default `RunOnce:true` so the CLI terminates). New `tests/AmetekWatch.Tests/SweepHostTests.cs` (4
+  tests, temp-file SQLite DB + fakes, hand-computed oracles: 4 persisted after URL-dedupe, 3
+  worth-reporting, digest order url-b/url-a/url-d, Other persisted-but-not-digested, durable round-trip
+  over a re-opened store) — can-fail confirmed and reverted. To compile that test the existing
+  `AmetekWatch.Tests.csproj` gained a single `ProjectReference` to `AmetekWatch.App` (Storage + Core flow
+  transitively) — necessary because `SweepHost` lives in App and the project previously referenced only
+  Core; **no new test project and no `.sln` edit** (the spec's "no .csproj edit" wording could not be
+  met literally — a SweepHost test cannot reference App without it). `.gitignore` now excludes the local
+  `ametek-watch.db` runtime store. No Anthropic/HTTP deps; Web/Triage/Search source and the `.sln`
+  untouched. `dotnet run --project src/AmetekWatch.App`: persisted 4, digest 3, exit 0; `appsettings.json`
+  resolved from the output dir and a SQLite DB file written. Gate green on Linux .NET 8.0.422:
+  `dotnet build -c Release` (0 warn), `dotnet format --verify-no-changes`, `dotnet test` (36/36 — was
+  32; AmetekWatch.Tests 25→29 + 4 storage + 3 web). `<Version>` stays `0.1.0` (internal). Auth still
+  deferred.
