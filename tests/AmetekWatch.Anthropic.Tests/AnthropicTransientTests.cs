@@ -77,6 +77,32 @@ public class AnthropicTransientTests
     }
 
     [Fact]
+    public void Unauthorized_401_IsNotTransient()
+    {
+        // A bad/expired key surfaces as 401 — a retry can never succeed, so never retry it.
+        var ex = new AnthropicUnauthorizedException(Hre())
+        {
+            StatusCode = HttpStatusCode.Unauthorized,
+            ResponseBody = "unauthorized",
+        };
+
+        Assert.False(AnthropicTransient.IsTransient(ex));
+    }
+
+    [Fact]
+    public void Forbidden_403_IsNotTransient()
+    {
+        // A permission failure surfaces as 403 — also permanent, never retried.
+        var ex = new AnthropicForbiddenException(Hre())
+        {
+            StatusCode = HttpStatusCode.Forbidden,
+            ResponseBody = "forbidden",
+        };
+
+        Assert.False(AnthropicTransient.IsTransient(ex));
+    }
+
+    [Fact]
     public void OtherApiError_4xx_IsNotTransient_ViaStatusCode()
     {
         var ex = new AnthropicApiException("not found", Hre())

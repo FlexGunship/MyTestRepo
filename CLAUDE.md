@@ -478,3 +478,22 @@ deliverables go branch → gate → **cross-model** integrate (author ≠ integr
   --verify-no-changes`, `dotnet test` (116/116 — was 99; AmetekWatch.Anthropic.Tests 30→44 +
   AmetekWatch.Tests 63→66 + 4 storage + 2 web). `<Version>` stays `0.1.0` (internal). Live Anthropic/SMTP paths
   still deferred (need a key/creds).
+- 2026-06-18 — **Spec 043-CC HOLD-fix: resolves the 042 HOLD on 041 (on branch; CX2 integrates).** Integration
+  042 ([`wiki/reviews/review-spec042-CX-activate-resilience.md`](wiki/reviews/review-spec042-CX-activate-resilience.md))
+  **HELD** 041 on two blockers — both resolved here; no behaviour change, no `.sln` edit, notifier impls and the
+  `SweepRunner` seam untouched. Branched from the HELD 041 branch (`origin/feature/cc-activate-resilience`,
+  tip `cbe7170`), not main. (1) **Blocker 1 — `SweepHost` seam.** 041's prompt said "no `SweepHost` seam change",
+  but injecting the App-composed retry/`OnlyReportNew`-configured `SweepRunner` necessarily needs a way in; the
+  optional, backward-compatible `SweepRunner? runner = null` ctor param (null → `SweepHost` builds the plain
+  `new SweepRunner(searcher, triage, store)` as before, so existing 3-/4-/5-arg construction and all prior tests
+  are unchanged) is the correct minimal design. Spec 043 **blesses** that seam — kept as-is, with a one-line
+  XML-doc note marking it the App-side composed-runner injection point (the only `src/` change). (2) **Blocker 2 —
+  missing 401 test.** Added explicit `Unauthorized_401_IsNotTransient` (+ `Forbidden_403_IsNotTransient` for
+  symmetry) to `tests/AmetekWatch.Anthropic.Tests/AnthropicTransientTests.cs`, asserting
+  `AnthropicTransient.IsTransient(<401/403>) == false` — same SDK construction as the existing 400/404 cases
+  (`AnthropicUnauthorizedException`/`AnthropicForbiddenException`, both `Anthropic4xxException` subtypes). The
+  predicate already returned false by logic (only 429 or `>=500` retry); these lock the named no-retry guarantee
+  by test. Can-fail confirmed (flipped the 401 assertion to `True` → 1 fail) and reverted. Gate green on Linux
+  .NET 8.0.422: `dotnet build -c Release` (0 warn), `dotnet format --verify-no-changes`, `dotnet test`
+  (118/118 — was 116; AmetekWatch.Anthropic.Tests 44→46). `<Version>` stays `0.1.0` (internal). Live
+  Anthropic/SMTP paths still deferred (need a key/creds).

@@ -32,7 +32,8 @@ public sealed class SweepHost
     /// The configured <see cref="SweepRunner"/> to drive each sweep. Optional — defaults to a plain
     /// <c>new SweepRunner(searcher, triage, store)</c> (no retry, full digest), exactly the prior
     /// behaviour, so existing construction is unchanged. <c>SweepComposer</c> supplies one with the
-    /// retry policy + new-only + triage-error wiring baked in.
+    /// retry policy + new-only + triage-error wiring baked in. This is the App-side composed-runner
+    /// injection point — blessed by spec 043-CC as the correct, backward-compatible seam.
     /// </param>
     public SweepHost(
         ISearcher searcher,
