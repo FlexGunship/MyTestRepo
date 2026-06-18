@@ -1,0 +1,16 @@
+<Project>
+
+  <!--
+    Shared build properties for every project in the AmetekWatch solution.
+    <Version> here is the SINGLE live version source — future ships bump it here,
+    never hardcode a version in an individual project or in code.
+  -->
+  <PropertyGroup>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <Version>0.1.0</Version>
+  </PropertyGroup>
+
+</Project>
