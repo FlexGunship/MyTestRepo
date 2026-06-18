@@ -98,3 +98,22 @@ deliverables go branch → gate → **cross-model** integrate (author ≠ integr
   order, the 3 worth-reporting findings). Both new projects appended to `AmetekWatch.sln`. Gate green on
   .NET 8.0.422: `dotnet build -c Release` (0 warn), `dotnet format --verify-no-changes`, `dotnet test`
   (10/10 = 7 prior + 3 new). `AmetekWatch.App` and the slice test project untouched; no SQLite.
+- 2026-06-18 — **Spec 013-CC searcher query & result-mapping logic landed (on branch; awaiting integration).**
+  New `src/AmetekWatch.Core/Search/` with three pure-C# types (no I/O, no clock, no new NuGet/project):
+  `SearchResultItem` (a record for one raw search hit — `Url`/`Title`/`Snippet`/`DateTimeOffset?
+  PublishedAt`/`string? SourceDomain`), `SearchQueryBuilder` (`BuildQueries(SweepQuery)` → an ordered,
+  ordinally de-duplicated list of query strings: a general subject query plus one per focus area —
+  opinion/social sentiment and reputable financial reports/earnings; trims the subject; deterministic),
+  and `SearchResultMapper` (`ToFinding(SearchResultItem, DateTimeOffset discoveredAt)` → `Finding` with a
+  documented category heuristic driven by explicit commented constant lists: `FinancialReport` for
+  SEC/EDGAR or investor-relations domains or titles naming earnings/10-Q/10-K/annual report;
+  `OpinionSocial` for op-ed/opinion/blog titles or known social domains; else `Other`. `discoveredAt` is
+  injected — no `DateTimeOffset.Now`; null item throws `ArgumentNullException`). 11 new tests in
+  `tests/AmetekWatch.Tests/SearcherLogicTests.cs` appended to the existing project (hand-computed oracles:
+  queries cover subject + both focus areas in fixed order, de-duplicated/deterministic, subject trimmed;
+  ToFinding classifies SEC/IR/earnings → FinancialReport, opinion/social → OpinionSocial, neutral → Other,
+  maps all fields, uses the injected `discoveredAt`, null guard) — can-fail confirmed and reverted.
+  `ISearcher`/`FakeSearcher`, `AmetekWatch.App`, the Storage/Web projects, the `.sln`, and the test
+  `.csproj` are all untouched. Gate green on Linux .NET 8.0.422: `dotnet build -c Release` (0 warn),
+  `dotnet format --verify-no-changes`, `dotnet test` (25/25 — 18 Core [7 slice + 11 searcher] + 4 storage
+  + 3 web). `<Version>` stays `0.1.0` (internal). Auth still deferred.
