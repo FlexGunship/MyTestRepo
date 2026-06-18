@@ -180,3 +180,28 @@ deliverables go branch → gate → **cross-model** integrate (author ≠ integr
   Linux .NET 8.0.422: `dotnet build -c Release` (0 warn), `dotnet format --verify-no-changes`,
   `dotnet test` (35/35 — was 36; AmetekWatch.Web.Tests 3→2 + 29 Core + 4 storage). `<Version>` stays
   `0.1.0` (internal). Auth still deferred.
+- 2026-06-18 — **Spec 019-CC Anthropic triage decider adapter (Opus 4.8) built (on branch; CX integrates).**
+  The real `ITriageDecider` now exists — Opus 4.8 judging a `Finding` against the 011 rubric with
+  structured output — built and **fully unit-tested offline**, deferring only the live network call to
+  when an `ANTHROPIC_API_KEY` is present. New class library `src/AmetekWatch.Anthropic` (`net8.0`, refs
+  `AmetekWatch.Core`, NuGet **`Anthropic` 12.29.1** — the official .NET SDK, resolved current). It splits
+  pure logic from the one untestable line: an `IMessagesClient` seam (`Task<string>
+  CreateMessageTextAsync(MessageCreateParams, ct)` → first text block) with a real
+  `AnthropicMessagesClient` wrapping the SDK's `AnthropicClient` (reads `ANTHROPIC_API_KEY` from env; ~5
+  lines — the **only** code not unit-tested); a pure `TriageRequestFactory` (`Build(Finding)` →
+  `MessageCreateParams` with `Model.ClaudeOpus4_8`, the rubric as a cache-controlled `List<TextBlockParam>`
+  system block via `CacheControlEphemeral` (prompt-caches the rubric prefix), the rendered finding as the
+  user message, `OutputConfig.Format = JsonOutputFormat` whose JSON schema pins
+  `{important,relevant,worthReporting:boolean, rationale:string}` all required / `additionalProperties:false`,
+  `MaxTokens 1024`); a pure `TriageVerdictParser` (`Parse(string)` → `TriageVerdict`, throws
+  `FormatException` on malformed/missing/mistyped JSON); and `AnthropicTriageDecider : ITriageDecider`
+  (ctor `IMessagesClient` + factory + parser; `JudgeAsync` = build → call → parse). New xUnit project
+  `tests/AmetekWatch.Anthropic.Tests` with a `FakeMessagesClient` (canned JSON, records request): 13 tests,
+  hand-computed oracles — factory pins the model id, the system block carries the rubric text AND cache
+  control, the schema exposes the four required fields, user content == `BuildUserContent`, null guard;
+  parser maps known JSON and throws on garbage/missing/wrong-type/null; decider with the fake yields the
+  expected verdict, sends an Opus-4.8 request, null guard. **No live API call, no hardcoded key** — the real
+  `AnthropicMessagesClient` compiles but is not exercised. Both projects added to `AmetekWatch.sln`; no other
+  project's source or the sweep host touched. Can-fail confirmed (flipped a decider verdict oracle → 1 fail)
+  and reverted. Gate green on Linux .NET 8.0.422: `dotnet build -c Release` (0 warn), `dotnet format
+  --verify-no-changes`, `dotnet test` (48/48 — was 35; +13 Anthropic). `<Version>` stays `0.1.0` (internal).
