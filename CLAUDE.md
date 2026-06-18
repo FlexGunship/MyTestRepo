@@ -329,3 +329,32 @@ deliverables go branch → gate → **cross-model** integrate (author ≠ integr
   deferred to a later tiny wiring spec). Gate green on Linux .NET 8.0.422: `dotnet build -c Release` (0 warn),
   `dotnet format --verify-no-changes`, `dotnet test` (81/81 — was 76; AmetekWatch.Tests 40→45 + 4 storage + 30
   Anthropic + 2 web). `<Version>` stays `0.1.0` (internal). Live SMTP path not exercised; auth still deferred.
+- 2026-06-18 — **Spec 032-CC digest-sink selection wired into the App (on branch; CX integrates).** 028 wired
+  the **file** sink; 030 added an **email** sink but left it unwired. This makes digest delivery
+  **config-selectable** — App-only wiring, no `SweepHost`/notifier-impl/Anthropic/`.sln` changes. `NotifyOptions`
+  (App) gains `Sink` (`"File"` default | `"Email"` | `"None"`, matched case-insensitively) and an `Email`
+  property bound to the existing 030 `EmailOptions`; shipped `appsettings.json` adds `Notify:Sink="File"` and a
+  disabled `Email` template block (`Enabled:false`, placeholder host/from/to, `SubjectPrefix:"AMETEK Watch"`).
+  New **pure** `DigestNotifierFactory.Create(notify, subject, clock, warn?)` (mirrors `PipelineFactory`:
+  construction-only, invokes nothing) resolves the `IDigestNotifier`: `File`+path → `FileDigestNotifier`;
+  `Email`+usable config → `EmailDigestNotifier(new SmtpEmailSender(EmailOptions), EmailOptions, renderer,
+  subject, clock)` (the live `SmtpEmailSender` is **constructed only — no send, no network**); `None`, an
+  unrecognized sink, a `File` sink with no path, or an incomplete/disabled email (`IsEmailUsable`: enabled +
+  host + from + ≥1 non-empty recipient + subject prefix) → `NullDigestNotifier` **with a clear warning** via an
+  injected `Action<string>?` callback (default no-op — keeps the helper pure/testable; `Program` passes
+  `Console.WriteLine`). `Program` now binds `Notify` **explicitly** (Sink/DigestPath via indexer; Email via a
+  tolerant `TryBindEmail` that catches the binder's required-parameter `InvalidOperationException` on a
+  partial/empty section and degrades to "incomplete → null") because the positional `EmailOptions` record makes
+  `Get<NotifyOptions>()` **crash** on an empty/partial `Email` block (e.g. `"To": []`) — and an incomplete email
+  config is exactly the graceful-fallback case, not a crash. `Program` uses the factory and logs
+  `Sink -> <resolved notifier type>`. 8 new tests in `tests/AmetekWatch.Tests/DigestSinkSelectionTests.cs`
+  (no new project/`.sln` edit; App types reach the test transitively): File+path→File, File+no-path→Null+warn,
+  Email-complete→Email (**constructed, never invoked — no SMTP/network**), Email-disabled→Null+warn,
+  Email-incomplete-host→Null+warn, Email-no-config→Null, None→Null, unknown-sink→Null+warn — resolved **types**
+  only. The 028 end-to-end test (default File) still passes unchanged. Can-fail confirmed (flipped the None
+  oracle to expect `EmailDigestNotifier` → 1 fail) and reverted. `PATH=… dotnet run --project src/AmetekWatch.App`
+  (default File): printed `Digest sink: File -> FileDigestNotifier`, FAKE pipeline, persisted 4, digest 3, exit
+  0, wrote `ametek-watch-digest.md` (verified content; gitignored). **No live API call, no live SMTP, no
+  hardcoded secret.** Gate green on Linux .NET 8.0.422: `dotnet build -c Release` (0 warn), `dotnet format
+  --verify-no-changes`, `dotnet test` (89/89 — was 81; AmetekWatch.Tests 45→53 + 4 storage + 30 Anthropic + 2
+  web). `<Version>` stays `0.1.0` (internal). Live SMTP/Anthropic paths still deferred (need creds/key).
