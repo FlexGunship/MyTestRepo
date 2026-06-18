@@ -12,8 +12,12 @@ I execute committed specs; I push branches and (cross-model) integrate peers' wo
 my own deliverables until graduated. The subject under `reference/` (if any) is read-only.
 
 ## Lessons (most-load-bearing first)
-_(none yet — append as you learn)_
+- **Verify push connectivity without leaking creds.** `git push --dry-run origin <branch>` proves the
+  remote is reachable and the ref would update, with no commit and no token printed. Pipe through a
+  `sed` redactor and use `${PIPESTATUS[0]}` for the real exit. The HTTPS remote here carries no embedded
+  credential in `git remote get-url` output — auth is handled out-of-band.
 
 ## Append log
 | Date | Spec | Lesson |
 |---|---|---|
+| 2026-06-18 | 005-CC2 | Onboarded CC2. `doc_check` green (53 files, OK). Dry-run push is the safe connectivity proof. |
