@@ -18,3 +18,4 @@ _(none yet — append as you learn)_
 ## Append log
 | Date | Spec | Lesson |
 |---|---|---|
+| 2026-06-18 | 006-CX2 | Onboarding reports are process docs: push the `agent/cx2` branch with exact evidence, then CM lands mechanically; do not self-merge. |
