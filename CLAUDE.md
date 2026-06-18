@@ -61,3 +61,13 @@ deliverables go branch → gate → **cross-model** integrate (author ≠ integr
   interfaces with deterministic fakes until a late wiring spec, so the whole system is buildable and
   testable offline now. Spec **001-CC** (vertical slice: solution scaffold + pipeline seams + green
   gate) authored and ready to dispatch.
+- 2026-06-18 — **Spec 001-CC vertical slice landed (on branch; integrator-merged via 002-CX).** The
+  `AmetekWatch` solution now exists: `AmetekWatch.Core` (domain records + `ISearcher`/`ITriageDecider`/
+  `IFindingStore` seams + `SweepRunner` with dedupe-by-`Url` and a worth-reporting digest + deterministic
+  fakes/in-memory store), `AmetekWatch.App` console host (`AssemblyName=ametek-watch`) that runs one fake
+  AMETEK sweep and prints the digest, and an xUnit suite (7 tests, hand-computed oracles for dedupe /
+  digest-filter / ordering / counts). Root `Directory.Build.props` pins `net8.0`, `Nullable=enable`,
+  `TreatWarningsAsErrors=true`, and the single live `Version=0.1.0`. Gate green on Linux .NET 8.0.422:
+  `dotnet build -c Release` (0 warn), `dotnet format --verify-no-changes`, `dotnet test` (7/7). Windows
+  `dist/ametek-watch.exe` cross-compiled (`win-x64`, self-contained, single-file) — built, not executed
+  (Windows runtime verification deferred). No Anthropic SDK / network dependency yet (auth still deferred).
