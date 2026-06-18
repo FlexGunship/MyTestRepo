@@ -245,3 +245,30 @@ deliverables go branch → gate → **cross-model** integrate (author ≠ integr
   spec). Gate green on Linux .NET 8.0.422: `dotnet build -c Release` (0 warn), `dotnet format
   --verify-no-changes`, `dotnet test` (56/56 — was 52; AmetekWatch.Tests 33→37 + 4 storage + 2 web + 13
   Anthropic). `<Version>` stays `0.1.0` (internal). Auth still deferred.
+- 2026-06-18 — **Spec 024-CC Anthropic searcher adapter (Sonnet 4.6 + web_search) built (on branch; CX integrates).**
+  The real `ISearcher` now exists — Sonnet 4.6 driving the server-side `web_search` tool, using the 013 query
+  logic and returning a structured JSON list of hits mapped into `Finding`s — built and **fully unit-tested
+  offline**, reusing the **existing `IMessagesClient` seam from 019** (no second client abstraction) and
+  deferring only the live network call. Three new pure/seam types in `src/AmetekWatch.Anthropic` (no new
+  project, NuGet, or `.sln` edit): `SearchRequestFactory` (`Build(SweepQuery) -> MessageCreateParams` with
+  `Model.ClaudeSonnet4_6`, `Tools = [ new WebSearchTool20260209() ]`, a user message that lists the 013
+  `SearchQueryBuilder.BuildQueries` terms in fixed order and asks for ONLY a JSON array of hits, and
+  `OutputConfig.Format = JsonOutputFormat` whose array schema pins item fields
+  `{url,title,snippet,publishedAt,sourceDomain}`; `MaxTokens 8192` for large web results; pure — no API call);
+  `SearchResponseParser` (`Parse(string) -> IReadOnlyList<SearchResultItem>` (013's record), empty-array
+  tolerant, throws `FormatException` on malformed/non-array/missing-field/wrong-type JSON; null `publishedAt`/
+  `sourceDomain` round-trip as null); and `AnthropicSearcher : ISearcher` (ctor `IMessagesClient` +
+  `SearchRequestFactory` + `SearchResponseParser` + an injected `Func<DateTimeOffset>` clock — **no
+  `DateTimeOffset.Now`**; `SweepAsync` = build → call → parse → map each via the real 013
+  `SearchResultMapper.ToFinding(item, discoveredAt)`). XML-doc notes that the live `web_search` server-tool
+  loop (`pause_turn`/`stop_reason` continuations) is **NOT exercised offline** — a documented follow-up
+  live-hardening concern for `AnthropicMessagesClient`. 17 new tests appended to the existing
+  `AmetekWatch.Anthropic.Tests` (reusing its `FakeMessagesClient`): factory pins Sonnet-4.6 + carries the
+  `web_search` tool + renders every 013 query term + exposes the five-field array schema + null guard; parser
+  maps a known array (incl. null fields) and empty array, throws on garbage/non-array/missing-field/null;
+  searcher via the fake yields the expected `Finding`s with categories from the **real 013 mapper**
+  (sec.gov→FinancialReport, opinion-title→OpinionSocial, neutral→Other), stamps the injected `discoveredAt`,
+  sends a Sonnet-4.6 web_search request, ctor null guards. **No live API call, no hardcoded key** — the live
+  path waits for `ANTHROPIC_API_KEY`. Can-fail confirmed (flipped a category oracle → 1 fail) and reverted.
+  Gate green on Linux .NET 8.0.422: `dotnet build -c Release` (0 warn), `dotnet format --verify-no-changes`,
+  `dotnet test` (69/69 — was 52; +17 Anthropic, 13→30). `<Version>` stays `0.1.0` (internal). Auth still deferred.
