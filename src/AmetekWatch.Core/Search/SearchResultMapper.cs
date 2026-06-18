@@ -10,11 +10,17 @@ namespace AmetekWatch.Core.Search;
 /// <remarks>
 /// <para>Category heuristic (checked in this order; first match wins):</para>
 /// <list type="number">
-///   <item><see cref="FindingCategory.FinancialReport"/> — the source domain looks like a
-///   regulator/filing host (SEC/EDGAR) or an investor-relations host, OR the title names a
-///   financial report (earnings, 10-Q, 10-K, annual report).</item>
-///   <item><see cref="FindingCategory.OpinionSocial"/> — the title signals opinion/commentary
-///   (op-ed, opinion, blog) OR the source domain is a known social/blogging platform.</item>
+///   <item><see cref="FindingCategory.FinancialReport"/> — the source <b>domain</b> is an
+///   institutional/regulator/IR host (SEC/EDGAR, investor-relations). A financial source domain
+///   is authoritative and wins regardless of the title.</item>
+///   <item><see cref="FindingCategory.OpinionSocial"/> — the source <b>domain</b> is a known
+///   social/blogging platform, OR the <b>title</b> signals opinion/commentary (op-ed, opinion,
+///   blog). A social source wins over a financial-title signal: this tool gives special weight to
+///   personal/social opinion, so e.g. a LinkedIn post titled "AMETEK earnings reaction" is social
+///   commentary <i>about</i> earnings, not an institutional financial report.</item>
+///   <item><see cref="FindingCategory.FinancialReport"/> — the <b>title</b> names a financial
+///   report (earnings, 10-Q, 10-K, annual report) from a non-social, non-IR source (e.g. a news
+///   article reporting results).</item>
 ///   <item><see cref="FindingCategory.Other"/> — anything else.</item>
 /// </list>
 /// The signal lists below are explicit constants so tests can pin the boundaries. Matching is
@@ -90,19 +96,30 @@ public static class SearchResultMapper
         var domain = (item.SourceDomain ?? item.Url).ToLowerInvariant();
         var title = (item.Title ?? string.Empty).ToLowerInvariant();
 
-        // 1. FinancialReport — institutional/filing domain or a financial-report title.
-        if (ContainsAny(domain, FinancialDomainSignals) || ContainsAny(title, FinancialTitleSignals))
+        // 1. FinancialReport — an institutional/regulator/IR source DOMAIN is authoritative and
+        //    wins regardless of the title (e.g. sec.gov, ir.<company>.com).
+        if (ContainsAny(domain, FinancialDomainSignals))
         {
             return FindingCategory.FinancialReport;
         }
 
-        // 2. OpinionSocial — opinion/commentary title or a known social/blogging domain.
-        if (ContainsAny(title, OpinionTitleSignals) || ContainsAny(domain, SocialDomainSignals))
+        // 2. OpinionSocial — a known social/blogging source DOMAIN, or an opinion/commentary
+        //    TITLE. A social source wins over a financial-title signal: special weight goes to
+        //    personal/social opinion, so a social post titled "AMETEK earnings reaction" is
+        //    commentary about earnings, not an institutional financial report.
+        if (ContainsAny(domain, SocialDomainSignals) || ContainsAny(title, OpinionTitleSignals))
         {
             return FindingCategory.OpinionSocial;
         }
 
-        // 3. Other — no recognised signal.
+        // 3. FinancialReport — a financial-report TITLE (earnings/10-Q/10-K/annual report) from a
+        //    non-social, non-IR source (e.g. a news article reporting quarterly results).
+        if (ContainsAny(title, FinancialTitleSignals))
+        {
+            return FindingCategory.FinancialReport;
+        }
+
+        // 4. Other — no recognised signal.
         return FindingCategory.Other;
     }
 

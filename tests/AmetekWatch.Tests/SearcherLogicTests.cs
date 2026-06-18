@@ -144,6 +144,68 @@ public class SearcherLogicTests
         Assert.Equal(FindingCategory.Other, SearchResultMapper.ToFinding(item, DiscoveredAt).Category);
     }
 
+    // --- SearchResultMapper: refined social-precedence heuristic (spec 020) -------------------
+
+    [Fact]
+    public void ToFinding_ClassifiesSocialDomainWithEarningsTitle_AsOpinionSocial()
+    {
+        // The flagged 013 edge: a known social source whose title carries a financial signal.
+        // Under the refined precedence the social DOMAIN (rule 2) wins over the financial TITLE
+        // (rule 3) — this post is opinion/social commentary about earnings, not a filing.
+        var item = new SearchResultItem(
+            Url: "https://www.linkedin.com/posts/analyst_ametek-earnings",
+            Title: "AMETEK earnings reaction: my take on the quarter",
+            Snippet: "Personal commentary on AME's results.",
+            PublishedAt: null,
+            SourceDomain: "linkedin.com");
+
+        Assert.Equal(FindingCategory.OpinionSocial, SearchResultMapper.ToFinding(item, DiscoveredAt).Category);
+    }
+
+    [Fact]
+    public void ToFinding_ClassifiesIrDomainWithOpinionTitle_AsFinancialReport()
+    {
+        // An institutional/IR source DOMAIN (rule 1) is authoritative and wins even when the
+        // title would otherwise read as opinion/commentary.
+        var item = new SearchResultItem(
+            Url: "https://ir.ametek.com/blog/opinion-on-outlook",
+            Title: "Opinion: AMETEK management blog on the outlook",
+            Snippet: "Posted to the investor-relations site.",
+            PublishedAt: null,
+            SourceDomain: "ir.ametek.com");
+
+        Assert.Equal(FindingCategory.FinancialReport, SearchResultMapper.ToFinding(item, DiscoveredAt).Category);
+    }
+
+    [Fact]
+    public void ToFinding_ClassifiesPlainNewsEarningsTitle_AsFinancialReport()
+    {
+        // A plain news article (non-social, non-IR domain) titled with a financial signal falls
+        // through to rule 3 → FinancialReport.
+        var item = new SearchResultItem(
+            Url: "https://news.example.com/markets/ametek-q2",
+            Title: "AMETEK Q2 earnings",
+            Snippet: "Wire report of quarterly results.",
+            PublishedAt: null,
+            SourceDomain: "news.example.com");
+
+        Assert.Equal(FindingCategory.FinancialReport, SearchResultMapper.ToFinding(item, DiscoveredAt).Category);
+    }
+
+    [Fact]
+    public void ToFinding_ClassifiesNeutralItem_AsOther_UnderRefinedPrecedence()
+    {
+        // No financial/social domain and no financial/opinion title → rule 4 (Other).
+        var item = new SearchResultItem(
+            Url: "https://news.example.com/ametek-new-facility",
+            Title: "AMETEK opens new manufacturing facility",
+            Snippet: "Plant expansion announcement.",
+            PublishedAt: null,
+            SourceDomain: "news.example.com");
+
+        Assert.Equal(FindingCategory.Other, SearchResultMapper.ToFinding(item, DiscoveredAt).Category);
+    }
+
     // --- SearchResultMapper: field mapping ----------------------------------------------------
 
     [Fact]
