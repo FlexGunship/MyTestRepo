@@ -272,3 +272,36 @@ deliverables go branch → gate → **cross-model** integrate (author ≠ integr
   path waits for `ANTHROPIC_API_KEY`. Can-fail confirmed (flipped a category oracle → 1 fail) and reverted.
   Gate green on Linux .NET 8.0.422: `dotnet build -c Release` (0 warn), `dotnet format --verify-no-changes`,
   `dotnet test` (69/69 — was 52; +17 Anthropic, 13→30). `<Version>` stays `0.1.0` (internal). Auth still deferred.
+- 2026-06-18 — **Spec 028-CC capstone: App real-vs-fake pipeline toggle + digest wiring built (on branch;
+  CX integrates).** `AmetekWatch.App` now selects the pipeline tier **by config** and **emits the digest** after
+  each sweep — the offline v1 becomes a genuine end-to-end product that runs the real Sonnet→Opus pipeline the
+  moment `ANTHROPIC_API_KEY` is present, and falls back to the fakes otherwise. App now references
+  `AmetekWatch.Anthropic` (`dotnet add … reference`, csproj only — **no `.sln` edit**). New config: `Pipeline`
+  section `UseRealApi` (bool, **default false**) bound to a new `PipelineOptions` record, and `Notify` section
+  `DigestPath` (string, optional) bound to a new `NotifyOptions` record; shipped `appsettings.json` defaults to
+  `UseRealApi:false` + `DigestPath:"ametek-watch-digest.md"` (gitignored, like the SQLite store). New pure
+  `PipelineFactory.Create(useRealApi, realClientFactory?, clock?)` resolves `(ISearcher, ITriageDecider)`: the
+  real `AnthropicSearcher` (clock `() => DateTimeOffset.UtcNow`) + `AnthropicTriageDecider` over a shared
+  `IMessagesClient` when true, else `FakeSearcher`+`FakeTriageDecider` — type selection only, invokes nothing
+  (the env-key check + warn-and-fall-back live in `Program`, kept out of the helper so the real path is
+  type-resolvable with no key). `Program` (now references Anthropic): when `UseRealApi==true` it checks
+  `ANTHROPIC_API_KEY` — present → real `AnthropicMessagesClient`-backed adapters; **unset → prints a clear
+  one-line warning and falls back to the fakes** (no crash, no silent fake) — and logs the active pipeline
+  (REAL/FAKE); else fakes. `SweepHost` gained an **optional** 5th ctor param `IDigestNotifier? notifier = null`
+  (defaults to `NullDigestNotifier`, so existing 4-arg construction and the prior tests are untouched);
+  `RunOnceAsync` now delivers the worth-reporting digest through it after persisting. `Program` wires
+  `FileDigestNotifier(DigestPath, Subject, () => DateTimeOffset.UtcNow)` when `DigestPath` is set, else
+  `NullDigestNotifier`. `RunOnce` default unchanged (CLI terminates, exit 0). 3 new tests in
+  `tests/AmetekWatch.Tests/PipelineToggleAndDigestTests.cs` (no new project/`.sln` edit; Anthropic types reach
+  the test transitively via App): `Create(true,…)` resolves `AnthropicSearcher`/`AnthropicTriageDecider`
+  **without invoking them** (fake `IMessagesClient` never called — no network, no key), `Create(false)` resolves
+  the fakes, and one fake sweep over a temp-file SQLite DB + temp `DigestPath` persists 4 unique / 3
+  worth-reporting **and** writes the digest file (asserts existence + the hand-computed "3 items worth
+  reporting." line). Can-fail confirmed (broke the digest count oracle → 1 fail) and reverted.
+  `PATH=… dotnet run --project src/AmetekWatch.App` (default fakes): printed the FAKE pipeline, persisted 4,
+  digest 3, exit 0, and wrote `ametek-watch-digest.md` (verified content). **No live API call, no hardcoded
+  key** — the live `web_search`/Opus path waits for `ANTHROPIC_API_KEY` (still NOT exercised). Gate green on
+  Linux .NET 8.0.422: `dotnet build -c Release` (0 warn), `dotnet format --verify-no-changes`, `dotnet test`
+  (76/76 — was 73; AmetekWatch.Tests 37→40). `<Version>` stays `0.1.0` (internal) — **but this capstone closes
+  the end-to-end product loop; FLAGGED to the Manager as a candidate first user-facing milestone (e.g. 0.1.0 →
+  1.0.0 + a `CHANGELOG`), Manager's call.** Auth wiring remains the only deferred step (a live key).

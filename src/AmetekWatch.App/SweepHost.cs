@@ -1,4 +1,5 @@
 using AmetekWatch.Core.Model;
+using AmetekWatch.Core.Notify;
 using AmetekWatch.Core.Pipeline;
 
 namespace AmetekWatch.App;
@@ -6,7 +7,8 @@ namespace AmetekWatch.App;
 /// <summary>
 /// Hosts the sweep pipeline behind the three Core seams plus a persistence store. A single
 /// <see cref="RunOnceAsync"/> drives one <see cref="SweepRunner"/> sweep for the configured
-/// subject and returns its worth-reporting digest; <see cref="RunAsync"/> wraps that in a
+/// subject, delivers the worth-reporting digest through the configured
+/// <see cref="IDigestNotifier"/>, and returns that digest; <see cref="RunAsync"/> wraps that in a
 /// cancellation-friendly loop for the long-running (service) mode.
 /// </summary>
 /// <remarks>
@@ -19,28 +21,38 @@ public sealed class SweepHost
     private readonly ITriageDecider _triage;
     private readonly IFindingStore _store;
     private readonly SweepOptions _options;
+    private readonly IDigestNotifier _notifier;
 
+    /// <param name="notifier">
+    /// Where the worth-reporting digest is delivered after each sweep. Optional — defaults to a
+    /// <see cref="NullDigestNotifier"/> (deliver nowhere), preserving the prior no-notifier behaviour.
+    /// </param>
     public SweepHost(
         ISearcher searcher,
         ITriageDecider triage,
         IFindingStore store,
-        SweepOptions options)
+        SweepOptions options,
+        IDigestNotifier? notifier = null)
     {
         _searcher = searcher ?? throw new ArgumentNullException(nameof(searcher));
         _triage = triage ?? throw new ArgumentNullException(nameof(triage));
         _store = store ?? throw new ArgumentNullException(nameof(store));
         _options = options ?? throw new ArgumentNullException(nameof(options));
+        _notifier = notifier ?? new NullDigestNotifier();
     }
 
     /// <summary>
     /// Runs exactly one sweep for the configured subject, persisting every triaged finding to the
-    /// store, and returns the worth-reporting digest (most-recent <see cref="Finding.DiscoveredAt"/>
-    /// first — the ordering <see cref="SweepRunner"/> guarantees).
+    /// store, delivers the worth-reporting digest through the configured
+    /// <see cref="IDigestNotifier"/>, and returns that digest (most-recent
+    /// <see cref="Finding.DiscoveredAt"/> first — the ordering <see cref="SweepRunner"/> guarantees).
     /// </summary>
     public async Task<IReadOnlyList<TriagedFinding>> RunOnceAsync(CancellationToken ct = default)
     {
         var runner = new SweepRunner(_searcher, _triage, _store);
-        return await runner.RunAsync(new SweepQuery(_options.Subject), ct).ConfigureAwait(false);
+        var digest = await runner.RunAsync(new SweepQuery(_options.Subject), ct).ConfigureAwait(false);
+        await _notifier.NotifyAsync(digest, ct).ConfigureAwait(false);
+        return digest;
     }
 
     /// <summary>

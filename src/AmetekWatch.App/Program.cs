@@ -1,13 +1,19 @@
+using AmetekWatch.Anthropic;
 using AmetekWatch.App;
+using AmetekWatch.Core.Notify;
 using AmetekWatch.Core.Pipeline;
 using AmetekWatch.Storage;
 using Microsoft.Extensions.Configuration;
 
-// AMETEK Watch — config-driven sweep host.
+// AMETEK Watch — config-driven sweep host (capstone).
 //
-// Binds appsettings.json -> SweepOptions, constructs a durable SQLite store plus the deterministic
-// fakes (no Anthropic SDK, no network, no API key — the real pipeline tiers are the final deferred
-// spec), runs one sweep (RunOnce default true so the CLI terminates), and prints the digest.
+// Binds appsettings.json, selects the pipeline tier (real Sonnet 4.6 -> Opus 4.8 when
+// Pipeline:UseRealApi is true AND ANTHROPIC_API_KEY is present, else the deterministic fakes),
+// constructs a durable SQLite store, runs one sweep (RunOnce default true so the CLI terminates),
+// writes the worth-reporting digest to Notify:DigestPath when set, and prints the digest.
+//
+// No API key is ever read or printed here beyond a presence check; the live network call lives in
+// AnthropicMessagesClient and is not exercised offline.
 
 var config = new ConfigurationBuilder()
     .SetBasePath(AppContext.BaseDirectory)
@@ -15,16 +21,57 @@ var config = new ConfigurationBuilder()
     .Build();
 
 var options = config.GetSection("Sweep").Get<SweepOptions>() ?? new SweepOptions();
+var pipeline = config.GetSection("Pipeline").Get<PipelineOptions>() ?? new PipelineOptions();
+var notify = config.GetSection("Notify").Get<NotifyOptions>() ?? new NotifyOptions();
 var dbPath = config["Storage:DbPath"] ?? "ametek-watch.db";
 
+// --- Select the pipeline tier. Real adapters only when configured AND a key is present; otherwise
+//     warn (if asked for real) and fall back to the fakes so the exe still runs and demonstrates.
+ISearcher searcher;
+ITriageDecider triage;
+string activePipeline;
+
+if (pipeline.UseRealApi)
+{
+    var hasKey = !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("ANTHROPIC_API_KEY"));
+    if (hasKey)
+    {
+        (searcher, triage) = PipelineFactory.Create(
+            useRealApi: true,
+            realClientFactory: () => new AnthropicMessagesClient(),
+            clock: () => DateTimeOffset.UtcNow);
+        activePipeline = "REAL (Sonnet 4.6 web_search -> Opus 4.8 triage)";
+    }
+    else
+    {
+        Console.WriteLine(
+            "WARNING: Pipeline:UseRealApi is true but ANTHROPIC_API_KEY is not set — falling back to the deterministic fakes.");
+        (searcher, triage) = PipelineFactory.Create(useRealApi: false);
+        activePipeline = "FAKE (fell back: ANTHROPIC_API_KEY not set)";
+    }
+}
+else
+{
+    (searcher, triage) = PipelineFactory.Create(useRealApi: false);
+    activePipeline = "FAKE (deterministic; Pipeline:UseRealApi=false)";
+}
+
+// --- Digest sink: write a file when a path is configured, else deliver nowhere.
+IDigestNotifier notifier = string.IsNullOrWhiteSpace(notify.DigestPath)
+    ? new NullDigestNotifier()
+    : new FileDigestNotifier(notify.DigestPath, options.Subject, () => DateTimeOffset.UtcNow);
+
 var store = new SqliteFindingStore(dbPath);
-var host = new SweepHost(new FakeSearcher(), new FakeTriageDecider(), store, options);
+var host = new SweepHost(searcher, triage, store, options, notifier);
 
 var digest = await host.RunOnceAsync(CancellationToken.None);
 var persisted = await store.GetAllAsync(CancellationToken.None);
 
 Console.WriteLine($"AMETEK Watch — sweep for \"{options.Subject}\"");
+Console.WriteLine($"Pipeline:               {activePipeline}");
 Console.WriteLine($"Store (SQLite):         {dbPath}");
+Console.WriteLine(
+    $"Digest sink:            {(string.IsNullOrWhiteSpace(notify.DigestPath) ? "(none)" : notify.DigestPath)}");
 Console.WriteLine($"Persisted findings:     {persisted.Count}");
 Console.WriteLine($"Worth-reporting digest: {digest.Count}");
 Console.WriteLine();
