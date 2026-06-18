@@ -224,3 +224,24 @@ deliverables go branch → gate → **cross-model** integrate (author ≠ integr
   project's source or the sweep host touched. Can-fail confirmed (flipped a decider verdict oracle → 1 fail)
   and reverted. Gate green on Linux .NET 8.0.422: `dotnet build -c Release` (0 warn), `dotnet format
   --verify-no-changes`, `dotnet test` (48/48 — was 35; +13 Anthropic). `<Version>` stays `0.1.0` (internal).
+- 2026-06-18 — **Spec 025-CC2 digest notifier seam + file sink built (on branch; CX2 integrates).** New
+  folder `src/AmetekWatch.Core/Notify/` adds the pluggable digest-delivery seam the charter wanted (file
+  sink now, email a later drop-in) — pure C#, no new NuGet/project: `IDigestNotifier`
+  (`Task NotifyAsync(IReadOnlyList<TriagedFinding> digest, CancellationToken ct)`), `FileDigestNotifier`,
+  and `NullDigestNotifier` (no-op default when no sink is configured). `FileDigestNotifier` (ctor:
+  output path, subject, `Func<DateTimeOffset>` timestamp provider) writes a **friendly Markdown digest** —
+  a heading naming the subject + run time, the worth-reporting count, then one section per finding with
+  its kind (friendly label: "Opinion / Social" / "Financial Report" / "Other"), title, link, and the
+  decider's rationale ("Why it matters"). **Friendly names only** — no internal type/property/enum
+  identifiers leak into the file; empty digest renders a clean "Nothing to report this run." form; the
+  file is overwritten each run. The run timestamp is **injected** (provider; converted to UTC) — **no
+  `DateTimeOffset.Now`** — so the output is deterministic. New
+  `tests/AmetekWatch.Tests/DigestNotifierTests.cs` appended to the existing `AmetekWatch.Tests` project
+  (no `.csproj`/`.sln` edit): 4 tests with hand-computed full-string oracles over a temp file — seeded
+  two-item digest (exact Markdown, +02:00 stamp normalises to 14:30 UTC, asserts no internal names leak),
+  empty "nothing to report" case, overwrite-replaces-prior-run, and `NullDigestNotifier` writes nothing.
+  Can-fail confirmed (flipped the worth-reporting count oracle → 1 fail) and reverted. **No App/DI/SweepHost
+  wiring, no email/SMTP, no Anthropic projects touched, no `.sln` edit** (all deferred to a later wiring
+  spec). Gate green on Linux .NET 8.0.422: `dotnet build -c Release` (0 warn), `dotnet format
+  --verify-no-changes`, `dotnet test` (56/56 — was 52; AmetekWatch.Tests 33→37 + 4 storage + 2 web + 13
+  Anthropic). `<Version>` stays `0.1.0` (internal). Auth still deferred.
