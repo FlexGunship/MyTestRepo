@@ -358,3 +358,32 @@ deliverables go branch → gate → **cross-model** integrate (author ≠ integr
   hardcoded secret.** Gate green on Linux .NET 8.0.422: `dotnet build -c Release` (0 warn), `dotnet format
   --verify-no-changes`, `dotnet test` (89/89 — was 81; AmetekWatch.Tests 45→53 + 4 storage + 30 Anthropic + 2
   web). `<Version>` stays `0.1.0` (internal). Live SMTP/Anthropic paths still deferred (need creds/key).
+- 2026-06-18 — **Spec 034-CC sweep resilience: per-finding triage isolation + retry helper built (on branch;
+  CX2 integrates).** Hardens `SweepRunner` for the real periodic daemon so a transient API error or one
+  bad finding no longer crashes the whole sweep — Core-only, backward-compatible, no App/Anthropic/`.sln`
+  changes. New `src/AmetekWatch.Core/Resilience/` (pure C#, no new NuGet/project): `IRetryPolicy`
+  (`Task<T> ExecuteAsync<T>(Func<CancellationToken,Task<T>> op, CancellationToken ct)`); `RetryPolicy`
+  (exponential backoff — ctor `maxAttempts`, base delay, `Func<Exception,bool> shouldRetry`, and an
+  **injected** `Func<TimeSpan,CancellationToken,Task>` delay defaulting to `Task.Delay` so tests pass a
+  no-op delay; retries only when `shouldRetry(ex)` and an attempt remains — via a `catch … when` filter so
+  the final/non-retryable throw propagates untouched; wait before retry `n` is `baseDelay * 2^(n-1)`;
+  guards `maxAttempts >= 1` and null `shouldRetry`/`op`); `NoRetryPolicy` (single-attempt passthrough,
+  the default). `SweepRunner` gained two **optional** ctor params with safe defaults so existing 3-arg
+  construction is unchanged: `IRetryPolicy? retryPolicy = null` (→ `NoRetryPolicy`) and
+  `Action<Finding,Exception>? onTriageError = null` (→ no-op). The searcher call now runs under
+  `retryPolicy.ExecuteAsync` (transient retry; if it still fails it propagates — a sweep can't proceed
+  without results); each finding's `JudgeAsync` runs under the policy inside a try/catch — on exception it
+  invokes `onTriageError(finding, ex)` and **skips** that finding (not persisted, not digested) and
+  continues; persist + digest successes only. 5 new tests appended to `tests/AmetekWatch.Tests/` (no new
+  project/`.sln` edit): `SweepRunnerResilienceTests` (decider throws on one of three findings → that
+  finding absent from persisted + digest, the other two persisted/digested most-recent-first, callback
+  fired exactly once for it with the thrown `InvalidOperationException`, sweep returns normally) and
+  `RetryPolicyTests` (transient-then-success returns the result in 3 attempts; gives up after
+  `maxAttempts` and rethrows the last; a non-retryable exception runs exactly once; `NoRetryPolicy` runs
+  once and propagates) — all with a **no-op injected delay** (no real waiting), hand-computed oracles.
+  Existing `SweepRunner`/end-to-end tests pass **unchanged** under the defaults. Can-fail confirmed
+  (flipped the callback-count oracle to expect 2 → 1 fail) and reverted. Gate green on Linux .NET 8.0.422:
+  `dotnet build -c Release` (0 warn), `dotnet format --verify-no-changes`, `dotnet test` (94/94 — was 89;
+  AmetekWatch.Tests 53→58 + 4 storage + 30 Anthropic + 2 web). `<Version>` stays `0.1.0` (internal).
+  Wiring the retry/transient predicate + `onTriageError` logging into the real App pipeline is a later
+  small spec. Auth still deferred.
