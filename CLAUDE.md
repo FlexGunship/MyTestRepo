@@ -85,3 +85,18 @@ deliverables go branch → gate → **cross-model** integrate (author ≠ integr
   is a later wiring spec). Gate green on Linux .NET 8.0.422: `dotnet build -c Release` (0 warn),
   `dotnet format --verify-no-changes`, `dotnet test` (11/11 — 7 slice + 4 storage). `<Version>` stays
   `0.1.0` (internal, no user-facing release). Auth still deferred.
+- 2026-06-18 — **Spec 011-CC triage prompt & rubric builder landed (on branch; awaiting integration).**
+  New `src/AmetekWatch.Core/Triage/` with two pure-C# types (no I/O, no new NuGet, no new project):
+  `TriageRubric` (a `const string SystemPrompt` — general AMETEK/AME awareness with SPECIAL WEIGHT on
+  personal/social opinion pieces and reputable-institution financial reports; defines the three
+  verdict dimensions Important/Relevant/WorthReporting and asks for a structured verdict = 3 booleans
+  + short rationale) and `TriagePromptBuilder` (`BuildSystemPrompt()` → the rubric;
+  `BuildUserContent(Finding)` → a deterministic, labelled user message rendering Category/Title/Url/
+  Snippet/PublishedAt, null-safe via a `(unknown)` sentinel for absent `PublishedAt`, `O`/invariant
+  date formatting, null-finding throws `ArgumentNullException`). 7 new tests appended to the existing
+  `AmetekWatch.Tests` project (hand-computed oracles: weighting + 3 dimensions present, every field
+  labelled, null-`PublishedAt` → `(unknown)`, determinism, null guard) — can-fail confirmed and
+  reverted. `ITriageDecider`/`FakeTriageDecider`, `AmetekWatch.App`, the SQLite/Web projects, the
+  `.sln`, and the test `.csproj` are all untouched. Gate green on Linux .NET 8.0.422:
+  `dotnet build -c Release` (0 warn), `dotnet format --verify-no-changes`, `dotnet test` (18/18 — 7
+  slice + 7 triage + 4 storage). `<Version>` stays `0.1.0` (internal). Auth still deferred.
