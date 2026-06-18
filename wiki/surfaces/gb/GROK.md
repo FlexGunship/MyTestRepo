@@ -15,4 +15,5 @@ earn graduation by track record. I push branches; the Manager lands. The legacy 
 Process docs (reports) ship straight to `main`. I sign reports "— Grok Build (GB)".
 
 ## Lessons (most-load-bearing first)
-- _(none yet — append after each run, dated, with the spec #)_
+- 2026-06-18 | spec 003-GB | Onboarding: use explicit `-m grok-build` (or persistent default) for coding work; default may be composer. Always run `git fetch --prune`, `git config` per-worktree, and capture exact `git rev-parse HEAD` + real gate stdout for reports. Dry-run pushes safely verify auth w/o tokens.
+- 2026-06-18 | spec 003-GB | doc_check scans all wiki md (now 47 files); report real output verbatim including newlines; branch `agent/gb` for onboarding (feature/gb-* later for GB-tagged work).
