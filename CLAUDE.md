@@ -387,3 +387,25 @@ deliverables go branch → gate → **cross-model** integrate (author ≠ integr
   AmetekWatch.Tests 53→58 + 4 storage + 30 Anthropic + 2 web). `<Version>` stays `0.1.0` (internal).
   Wiring the retry/transient predicate + `onTriageError` logging into the real App pipeline is a later
   small spec. Auth still deferred.
+- 2026-06-18 — **Spec 038-CC2 "new since last run" digest built (on branch; CX integrates).** Stops a
+  periodic daemon from re-reporting findings it has already seen — Core-only, backward-compatible, no
+  App/Anthropic/`.sln`/interface changes. `SweepRunner` gained **one** optional ctor param `bool
+  digestOnlyNew = false` (added after the 034 `retryPolicy`/`onTriageError` params, so existing
+  construction still compiles; default `false` = current behaviour). At the **start** of `RunAsync`
+  (before any persist), when `digestOnlyNew` is set, it snapshots the `Url`s already in the store via the
+  existing `IFindingStore.GetAllAsync()` (**no interface change**); a triaged finding is **new** iff its
+  `Url` is absent from that snapshot. **Persist-all is unchanged** — every triaged survivor is still
+  upserted. The returned digest gains one extra filter: when `digestOnlyNew==true` it is worth-reporting
+  **AND new**; when `false` it is the full worth-reporting subset (unchanged). Ordering (most-recent
+  `DiscoveredAt` first) unchanged. 3 new tests in `tests/AmetekWatch.Tests/SweepRunnerOnlyNewTests.cs`
+  (no new project/`.sln` edit; hand-computed oracles over `FakeSearcher.Canned`): pre-seed the store with
+  worth-reporting `url-b`, then sweep with `digestOnlyNew=true` → digest = `[url-a, url-d]` (known `url-b`
+  excluded, new findings included) while `url-b`/`url-c` are still persisted; same seed with
+  `digestOnlyNew=false` → digest = `[url-b, url-a, url-d]` (unchanged); empty store + `digestOnlyNew=true`
+  → all worth-reporting are new (`[url-b, url-a, url-d]`). Existing `SweepRunner`/end-to-end tests pass
+  **unchanged** under the default `false`. Can-fail confirmed (flipped the only-new digest oracle to
+  include `url-b` → 1 fail) and reverted. **No App/Anthropic projects, `IFindingStore`, or `.sln`
+  touched** (App `Sweep:OnlyReportNew` config wiring is a later tiny spec). Gate green on Linux
+  .NET 8.0.422: `dotnet build -c Release` (0 warn), `dotnet format --verify-no-changes`, `dotnet test`
+  (97/97 — was 94; AmetekWatch.Tests 58→61 + 4 storage + 30 Anthropic + 2 web). `<Version>` stays
+  `0.1.0` (internal). Auth still deferred.
