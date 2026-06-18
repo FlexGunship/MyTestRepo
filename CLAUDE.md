@@ -409,3 +409,37 @@ deliverables go branch → gate → **cross-model** integrate (author ≠ integr
   .NET 8.0.422: `dotnet build -c Release` (0 warn), `dotnet format --verify-no-changes`, `dotnet test`
   (97/97 — was 94; AmetekWatch.Tests 58→61 + 4 storage + 30 Anthropic + 2 web). `<Version>` stays
   `0.1.0` (internal). Auth still deferred.
+- 2026-06-18 — **Spec 036-CC scheduled sweep host (IHostedService daemon) built (on branch; CX integrates).**
+  Makes `ametek-watch.exe` a proper long-lived periodic daemon with **graceful shutdown** (Ctrl+C / SIGTERM),
+  while keeping the deterministic one-shot CLI default — App-only, backward-compatible, **no `.sln` edit and no
+  change to the `SweepHost`/`SweepRunner` seams or other projects**. Added `Microsoft.Extensions.Hosting`
+  **8.0.0** to `AmetekWatch.App.csproj` (pinned to 8.0.0 to match the existing 8.0.0 Configuration packages —
+  the auto-selected 10.0.9 forced a `TreatWarningsAsErrors` NU1605 downgrade against those pins). New
+  `src/AmetekWatch.App/SweepBackgroundService.cs` (`: BackgroundService`): `ExecuteAsync(stoppingToken)` runs
+  the **existing** `SweepHost.RunAsync(stoppingToken)` interval loop, threading the token through for graceful
+  unwind (the expected `OperationCanceledException` on shutdown is swallowed); logs start/stop via the host
+  logger. It opens with `await Task.Yield()` so a synchronous-completing sweep loop (zero/short interval over a
+  store whose async calls complete synchronously) cannot **block host startup** — the Generic Host runs
+  `ExecuteAsync` inline until its first await. New `src/AmetekWatch.App/LoggingDigestNotifier.cs` (an
+  `IDigestNotifier` decorator) logs one line per completed sweep (the host delivers one digest per sweep) then
+  delegates — this is how "log each sweep" is satisfied **without touching `SweepHost`**. New
+  `src/AmetekWatch.App/SweepComposer.cs` factors the 028/032 wiring (pipeline-tier selection incl. the
+  `ANTHROPIC_API_KEY` presence check + warn-and-fall-back, SQLite store, tolerant `Notify` bind, digest-sink
+  selection) out of `Program` into a shared `SweepComposition`/`SweepComposer.Build(config, warn)` so the
+  one-shot path and the daemon DI share one composition (construction only — no network, no secret printed).
+  `Program` rewritten: binds config → `SweepComposer.Build`; **`Sweep:RunOnce=true` (default) → one sweep +
+  exit 0 (unchanged CLI behaviour)**; `RunOnce=false` → `Host.CreateApplicationBuilder(args)`, registers the
+  `SweepHost` in DI (built from the composition, its notifier wrapped in `LoggingDigestNotifier`) +
+  `AddHostedService<SweepBackgroundService>()`, then `host.Run()` (long-lived; Ctrl+C stops gracefully). 2 new
+  tests in `tests/AmetekWatch.Tests/SweepBackgroundServiceTests.cs` (no new project/`.sln` edit; App types reach
+  the test transitively): the daemon over **fakes + temp SQLite + IntervalMinutes=0** runs **≥2 sweeps**
+  (observed via a counting `IDigestNotifier`, bounded 10s wait) then **stops promptly** on `StopAsync` (bounded
+  10s) with the fakes' 4 unique findings persisted; and the `RunOnce=true` path runs **exactly one** sweep and
+  returns despite a 1440-min interval (no hang). Fast + deterministic (zero interval, all waits bounded, no real
+  delays). Can-fail confirmed (flipped the persisted-count oracle 4→99 → 1 fail) and reverted.
+  `PATH=… dotnet run -c Release --project src/AmetekWatch.App` (default RunOnce=true): printed the FAKE pipeline
+  + `Digest sink: File -> FileDigestNotifier`, persisted 4, digest 3, exit 0, wrote `ametek-watch-digest.md`
+  (verified content; gitignored). **No live API call, no live SMTP, no hardcoded secret.** Gate green on Linux
+  .NET 8.0.422: `dotnet build -c Release` (0 warn), `dotnet format --verify-no-changes`, `dotnet test` (91/91 —
+  was 89; AmetekWatch.Tests 53→55 + 4 storage + 30 Anthropic + 2 web). `<Version>` stays `0.1.0` (internal).
+  Windows-service / Task-Scheduler registration and the live API/SMTP paths remain deferred.
