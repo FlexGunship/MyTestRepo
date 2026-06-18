@@ -25,13 +25,12 @@ Anthropic SDK (owner's decision: auth last).
 - **015 — app sweep host:** `App` `SweepOptions` + `SweepHost` (`RunOnceAsync`/cancellation-friendly
   `RunAsync` loop) + `appsettings.json`; `Program` runs a config-driven sweep persisting to **SQLite**.
   Verified by running the exe: 4 persisted to `ametek-watch.db`, 3 worth-reporting. 4 tests.
-- **017 — dashboard reads SQLite:** *(IN FLIGHT at write time — CC building `feature/cc-dashboard-sqlite`,
-  CX2 to integrate via 018.)* Points the dashboard at the same `Storage:DbPath` so it shows what the
-  sweeper persisted. If not yet landed, it's the first thing to finish next session.
+- **017 — dashboard reads SQLite (LANDED `a832b6c`, CX2-integrated via 018):** the dashboard now serves
+  from the same `Storage:DbPath` SQLite store the sweep host writes (in-memory seeding removed; empty DB →
+  `[]`). The **offline v1 loop is closed**: sweep persists → dashboard displays. 35 tests green on `main`.
 
 ## Remaining backlog (prioritized; next session)
-1. **Finish 017** (dashboard ↔ shared SQLite) if still in flight.
-2. **The real Anthropic pipeline — the final deferred step (needs an API key).** Wire SDK-backed
+1. **The real Anthropic pipeline — the final deferred step (needs an API key). THIS IS THE NEXT WORK.** Wire SDK-backed
    `ISearcher` (Sonnet 4.6 + server-side `web_search` tool) and `ITriageDecider` (Opus 4.8) implementations
    behind the existing seams, consuming the 011 triage prompts + 013 search logic. Prompt-cache the stable
    triage system prompt (≥4096-tok prefix on Opus). Model IDs/SDK/pricing in [[charter-status]] and the
