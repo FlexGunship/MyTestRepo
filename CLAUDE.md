@@ -71,3 +71,17 @@ deliverables go branch → gate → **cross-model** integrate (author ≠ integr
   `dotnet build -c Release` (0 warn), `dotnet format --verify-no-changes`, `dotnet test` (7/7). Windows
   `dist/ametek-watch.exe` cross-compiled (`win-x64`, self-contained, single-file) — built, not executed
   (Windows runtime verification deferred). No Anthropic SDK / network dependency yet (auth still deferred).
+- 2026-06-18 — **Spec 007-CC SQLite store landed (on branch; awaiting CX2 integration).** New class
+  library `src/AmetekWatch.Storage` (`net8.0`, refs `AmetekWatch.Core`, NuGet `Microsoft.Data.Sqlite`
+  10.0.9) implements `SqliteFindingStore : IFindingStore` — a durable persistence backend behind the
+  existing seam. Schema-on-init (single `findings` table keyed by `url TEXT PRIMARY KEY`), `SaveAsync`
+  upserts by `Url` (`INSERT … ON CONFLICT(url) DO UPDATE`), `GetAllAsync` returns all findings ordered
+  by `discovered_at` **descending** (most-recently discovered first). Dates persist as ISO-8601
+  round-trip text (`DateTimeOffset` "O"); `FindingCategory` persists as its enum name; null
+  `PublishedAt` round-trips as SQL NULL. New xUnit project `tests/AmetekWatch.Storage.Tests` (4 tests,
+  temp-file DBs, hand-computed oracles: full round-trip, upsert-replaces-latest-wins, descending
+  ordering, nullable-`PublishedAt`) — can-fail confirmed and reverted. Both projects appended to
+  `AmetekWatch.sln`. `AmetekWatch.App` and the slice test project untouched (runtime SQLite selection
+  is a later wiring spec). Gate green on Linux .NET 8.0.422: `dotnet build -c Release` (0 warn),
+  `dotnet format --verify-no-changes`, `dotnet test` (11/11 — 7 slice + 4 storage). `<Version>` stays
+  `0.1.0` (internal, no user-facing release). Auth still deferred.
