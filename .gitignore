@@ -16,6 +16,12 @@ reference/**/dist/
 # Vendor installers (large binaries, not source)
 reference/ThirdParty/*.exe
 
+# --- .NET build output & artifacts (AmetekWatch solution) ---
+bin/
+obj/
+dist/
+*.user
+
 # --- OS / editor cruft ---
 .DS_Store
 Thumbs.db
