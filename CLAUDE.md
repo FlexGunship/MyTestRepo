@@ -180,3 +180,22 @@ deliverables go branch → gate → **cross-model** integrate (author ≠ integr
   Linux .NET 8.0.422: `dotnet build -c Release` (0 warn), `dotnet format --verify-no-changes`,
   `dotnet test` (35/35 — was 36; AmetekWatch.Web.Tests 3→2 + 29 Core + 4 storage). `<Version>` stays
   `0.1.0` (internal). Auth still deferred.
+- 2026-06-18 — **Spec 020-CC2 searcher category-heuristic refinement landed (on branch; CX2 integrates).**
+  Refined `SearchResultMapper.Classify` (013) so a **known social/opinion source domain wins over a
+  financial-title signal** — addressing CX's 014 edge note: a social post whose title carries a financial
+  word (e.g. a LinkedIn post titled "AMETEK earnings reaction") is opinion/social commentary *about*
+  earnings, not an institutional filing. New precedence (first match wins, documented in comments): (1)
+  institutional/regulator/IR source **domain** (SEC/EDGAR, `ir.`/`investor.`) → `FinancialReport`
+  (authoritative regardless of title); (2) known social/blogging **domain** OR opinion/op-ed/blog **title**
+  → `OpinionSocial`; (3) financial-report **title** (earnings/10-Q/10-K/annual report) from a non-social,
+  non-IR source → `FinancialReport`; (4) else `Other`. Only the `Classify` ordering + XML-doc/comment
+  wording changed: the public signature, the explicit commented constant lists (contents unchanged), and
+  the injected-`discoveredAt` purity are all untouched. `SearchQueryBuilder`/`SearchResultItem`, non-Search
+  source, the Anthropic work (019), and the `.sln` were not touched. 4 tests appended to
+  `tests/AmetekWatch.Tests/SearcherLogicTests.cs` (hand-computed: flagged social-domain+earnings-title →
+  `OpinionSocial`; IR-domain+opinion-title → `FinancialReport`; plain-news "AMETEK Q2 earnings" →
+  `FinancialReport`; neutral → `Other`) — can-fail confirmed (flipped the flagged oracle → 1 fail) and
+  reverted. **No existing 013 test expectation changed** under the new precedence. Gate green on Linux
+  .NET 8.0.422: `dotnet build -c Release` (0 warn), `dotnet format --verify-no-changes`, `dotnet test`
+  (39/39 — was 35; AmetekWatch.Tests 29→33 + 4 storage + 2 web). `<Version>` stays `0.1.0` (internal).
+  Auth still deferred.
