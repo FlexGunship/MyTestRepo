@@ -1,4 +1,4 @@
-﻿
+
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.31903.59
@@ -16,6 +16,10 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AmetekWatch.Storage", "src\AmetekWatch.Storage\AmetekWatch.Storage.csproj", "{C6020DBB-7CF2-46F9-8F23-F0AF857FA037}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AmetekWatch.Storage.Tests", "tests\AmetekWatch.Storage.Tests\AmetekWatch.Storage.Tests.csproj", "{9F251231-D3A6-4605-8A2B-9F55A5B9AD4A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AmetekWatch.Web", "src\AmetekWatch.Web\AmetekWatch.Web.csproj", "{D1ECCC27-04D1-4A86-968A-462D227C0321}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AmetekWatch.Web.Tests", "tests\AmetekWatch.Web.Tests\AmetekWatch.Web.Tests.csproj", "{A92B0543-0E7D-4D7E-89E1-0A52D8D55703}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -46,6 +50,14 @@ Global
 		{9F251231-D3A6-4605-8A2B-9F55A5B9AD4A}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{9F251231-D3A6-4605-8A2B-9F55A5B9AD4A}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{9F251231-D3A6-4605-8A2B-9F55A5B9AD4A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D1ECCC27-04D1-4A86-968A-462D227C0321}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D1ECCC27-04D1-4A86-968A-462D227C0321}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D1ECCC27-04D1-4A86-968A-462D227C0321}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D1ECCC27-04D1-4A86-968A-462D227C0321}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A92B0543-0E7D-4D7E-89E1-0A52D8D55703}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A92B0543-0E7D-4D7E-89E1-0A52D8D55703}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A92B0543-0E7D-4D7E-89E1-0A52D8D55703}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A92B0543-0E7D-4D7E-89E1-0A52D8D55703}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{17C0B3FC-F17B-450A-85C0-E54CF1354F04} = {68855AC2-7828-41C7-95FC-A76BEE41AAC6}
@@ -53,5 +65,7 @@ Global
 		{3745008A-F2E4-4A1E-ABE9-60F3F1BB818E} = {5CAE64F9-2A55-4D03-B26A-7FD648977D2E}
 		{C6020DBB-7CF2-46F9-8F23-F0AF857FA037} = {68855AC2-7828-41C7-95FC-A76BEE41AAC6}
 		{9F251231-D3A6-4605-8A2B-9F55A5B9AD4A} = {5CAE64F9-2A55-4D03-B26A-7FD648977D2E}
+		{D1ECCC27-04D1-4A86-968A-462D227C0321} = {68855AC2-7828-41C7-95FC-A76BEE41AAC6}
+		{A92B0543-0E7D-4D7E-89E1-0A52D8D55703} = {5CAE64F9-2A55-4D03-B26A-7FD648977D2E}
 	EndGlobalSection
 EndGlobal
