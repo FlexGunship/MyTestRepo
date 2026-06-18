@@ -1,0 +1,3 @@
+# The legacy source is a READ-ONLY analysis subject. Store every file byte-for-byte:
+# no EOL normalization, no filters. Citations rest on path:line, so the bytes must not move.
+* -text

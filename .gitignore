@@ -1,0 +1,25 @@
+# --- Lean-import guards for reference/ (the read-only legacy source) ---
+# These mirror what the source-only import excluded; keep them out if re-imported or built.
+reference/**/packages/
+reference/**/bin/
+reference/**/obj/
+reference/**/.vs/
+reference/**/build/
+reference/**/dist/
+*.sdf
+*.suo
+*.user
+*.pdb
+*.opensdf
+*.ncb
+
+# Vendor installers (large binaries, not source)
+reference/ThirdParty/*.exe
+
+# --- OS / editor cruft ---
+.DS_Store
+Thumbs.db
+*~
+*.swp
+.idea/
+.vscode/
