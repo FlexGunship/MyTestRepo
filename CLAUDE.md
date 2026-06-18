@@ -443,3 +443,38 @@ deliverables go branch → gate → **cross-model** integrate (author ≠ integr
   .NET 8.0.422: `dotnet build -c Release` (0 warn), `dotnet format --verify-no-changes`, `dotnet test` (91/91 —
   was 89; AmetekWatch.Tests 53→55 + 4 storage + 30 Anthropic + 2 web). `<Version>` stays `0.1.0` (internal).
   Windows-service / Task-Scheduler registration and the live API/SMTP paths remain deferred.
+- 2026-06-18 — **Spec 041-CC retry + new-only activated in the live pipeline (on branch; CX integrates).**
+  034 added a `RetryPolicy` + per-finding triage isolation and 038 added an opt-in new-only digest, but both
+  were off by default and unwired in the running app (036's `SweepComposer` built `SweepRunner` with neither).
+  This turns them on **by config** — App + Anthropic only, no `.sln` edit, no `SweepRunner`/notifier-impl change.
+  New pure `src/AmetekWatch.Anthropic/AnthropicTransient.cs` (`static bool IsTransient(Exception?)`) is the retry
+  `shouldRetry` predicate — **conservative**: transient = the SDK's `AnthropicRateLimitException` (429),
+  `Anthropic5xxException` (5xx incl. overloaded 529), any `AnthropicApiException` with status 429/≥500
+  (covers `AnthropicUnexpectedStatusCodeException`), `AnthropicIOException`, and raw
+  `HttpRequestException`/`TaskCanceledException`/`TimeoutException` (network/timeout); everything else — other
+  4xx, `AnthropicInvalidDataException`, `ArgumentException`, `FormatException`, null — is **not** transient
+  (SDK exception types confirmed via the `/claude-api` skill + reflection over `Anthropic.Exceptions` in the
+  12.29.1 package). Config: `Pipeline:Retry:{MaxAttempts:3, BaseDelayMs:500}` (new `RetryOptions`, nested on
+  `PipelineOptions`) and `Sweep:OnlyReportNew:false` (on `SweepOptions`), shipped in `appsettings.json`.
+  `SweepComposer.Build` (036) now selects the retry policy — `new RetryPolicy(MaxAttempts, BaseDelay,
+  AnthropicTransient.IsTransient)` when `UseRealApi==true`, else `NoRetryPolicy` (the fakes never fail) — and
+  builds the `SweepRunner` with that policy, `digestOnlyNew: Sweep.OnlyReportNew`, and an `onTriageError` that
+  logs each skipped finding via the composer's warn callback; the runner (and the selected `IRetryPolicy`, for
+  test visibility) are exposed on `SweepComposition`. `SweepHost` gained an **optional** 6th ctor param
+  `SweepRunner? runner = null` (defaults to the prior `new SweepRunner(searcher, triage, store)`) so existing
+  4-/5-arg construction and all prior tests are untouched — necessary because `SweepHost` builds the runner
+  internally and the composer-built runner must reach it (the spec's "don't change the SweepHost seam" could not
+  be met literally; this mirrors how 028 added an optional notifier param — the seam stays backward-compatible).
+  `Program` passes `c.Runner` to both the one-shot and daemon `SweepHost` constructions. 17 new tests: 14 in
+  `tests/AmetekWatch.Anthropic.Tests/AnthropicTransientTests.cs` (constructible cases — rate-limit/5xx/529 →
+  true, bad-request/404 → false, IO/HttpRequestException/TaskCanceled/Timeout → true, Argument/Format/
+  InvalidData/null → false) and 3 in `tests/AmetekWatch.Tests/SweepComposerResilienceTests.cs` (fake tier →
+  `NoRetryPolicy`; `OnlyReportNew=true` → second run over the same store reports nothing; `OnlyReportNew=false`
+  → second run still reports the full digest) — offline, no network/key, no new project/`.sln` edit. Can-fail
+  confirmed (forced `digestOnlyNew:false` in the composer → the only-new test failed) and reverted.
+  `PATH=… dotnet run --project src/AmetekWatch.App` (default fakes, OnlyReportNew=false): FAKE pipeline,
+  persisted 4, digest 3, exit 0, wrote `ametek-watch-digest.md` (gitignored). **No live API call, no live SMTP,
+  no hardcoded secret.** Gate green on Linux .NET 8.0.422: `dotnet build -c Release` (0 warn), `dotnet format
+  --verify-no-changes`, `dotnet test` (116/116 — was 99; AmetekWatch.Anthropic.Tests 30→44 +
+  AmetekWatch.Tests 63→66 + 4 storage + 2 web). `<Version>` stays `0.1.0` (internal). Live Anthropic/SMTP paths
+  still deferred (need a key/creds).

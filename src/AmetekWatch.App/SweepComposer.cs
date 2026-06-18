@@ -1,6 +1,7 @@
 using AmetekWatch.Anthropic;
 using AmetekWatch.Core.Notify;
 using AmetekWatch.Core.Pipeline;
+using AmetekWatch.Core.Resilience;
 using AmetekWatch.Storage;
 using Microsoft.Extensions.Configuration;
 
@@ -8,13 +9,16 @@ namespace AmetekWatch.App;
 
 /// <summary>
 /// The resolved building blocks of one configured sweep: the selected pipeline tier, the durable
-/// store, the digest notifier, the bound options, plus human-readable metadata for the CLI summary.
+/// store, the digest notifier, the configured <see cref="SweepRunner"/> (retry + new-only +
+/// triage-error wiring baked in), the bound options, plus human-readable metadata for the CLI summary.
 /// </summary>
 public sealed record SweepComposition
 {
     public required ISearcher Searcher { get; init; }
     public required ITriageDecider Triage { get; init; }
     public required IFindingStore Store { get; init; }
+    public required SweepRunner Runner { get; init; }
+    public required IRetryPolicy RetryPolicy { get; init; }
     public required SweepOptions Options { get; init; }
     public required NotifyOptions Notify { get; init; }
     public required IDigestNotifier Notifier { get; init; }
@@ -63,11 +67,35 @@ public static class SweepComposer
         IDigestNotifier notifier = DigestNotifierFactory.Create(
             notify, options.Subject, () => DateTimeOffset.UtcNow, log);
 
+        IFindingStore store = new SqliteFindingStore(dbPath);
+
+        // Resilience (034): retry transient failures only on the real tier — the deterministic fakes
+        // never fail, so the fake/fell-back tier uses NoRetryPolicy. New-only digest (038) and
+        // per-finding triage isolation (034) are wired here so both the one-shot CLI and the daemon
+        // (which share this composition) get identical behaviour.
+        IRetryPolicy retryPolicy = pipeline.UseRealApi
+            ? new RetryPolicy(
+                pipeline.Retry.MaxAttempts,
+                TimeSpan.FromMilliseconds(pipeline.Retry.BaseDelayMs),
+                AnthropicTransient.IsTransient)
+            : new NoRetryPolicy();
+
+        var runner = new SweepRunner(
+            searcher,
+            triage,
+            store,
+            retryPolicy,
+            onTriageError: (finding, ex) =>
+                log($"Triage skipped for {finding.Url}: {ex.GetType().Name}: {ex.Message}"),
+            digestOnlyNew: options.OnlyReportNew);
+
         return new SweepComposition
         {
             Searcher = searcher,
             Triage = triage,
-            Store = new SqliteFindingStore(dbPath),
+            Store = store,
+            Runner = runner,
+            RetryPolicy = retryPolicy,
             Options = options,
             Notify = notify,
             Notifier = notifier,

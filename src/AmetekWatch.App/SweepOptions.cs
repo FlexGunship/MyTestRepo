@@ -24,4 +24,12 @@ public sealed record SweepOptions
     /// spacing until cancelled.
     /// </summary>
     public bool RunOnce { get; init; } = true;
+
+    /// <summary>
+    /// When <c>true</c> the digest reports only worth-reporting findings whose URL was not already in
+    /// the store before the sweep (spec 038's <c>digestOnlyNew</c>), so a periodic daemon stops
+    /// re-notifying findings it has already reported. Default <c>false</c> keeps the CLI/tests
+    /// deterministic (the digest is the full worth-reporting subset of each sweep).
+    /// </summary>
+    public bool OnlyReportNew { get; init; }
 }
