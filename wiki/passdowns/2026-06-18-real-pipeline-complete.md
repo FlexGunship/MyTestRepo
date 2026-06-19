@@ -28,7 +28,23 @@ pipeline has **not** been verified against the real API (no key), and the Window
 **never executed on Windows** (dev hosts are Linux). Cut the first user-facing release only after a live
 smoke test passes and the exe runs on Windows.
 
-## Remaining backlog (prioritized — next session)
+## Production-hardening loop — DONE (2026-06-18, specs 034–044; `main` @ b33fa9c, 118 tests)
+Since the real pipeline landed, a second loop hardened it into a production-grade unattended monitor — all
+cross-model integrated, `main` green throughout:
+- **Sweep resilience (034 + 041/043):** a `RetryPolicy` (transient-only via `AnthropicTransient.IsTransient`
+  — 429/529/5xx/network retry; 4xx + argument/parse don't) + per-finding triage isolation (one bad finding
+  is skipped, the sweep completes). **Active** in the real pipeline via `Pipeline:Retry`. *(042 HOLD on the
+  over-strict "no SweepHost seam" constraint was resolved by 043, which blessed the optional runner-injection
+  seam + added 401/403 no-retry tests — a clean demonstration of the cross-model gate catching a real issue.)*
+- **New-since-last-run (038):** opt-in `Sweep:OnlyReportNew` — a pre-sweep `GetAllAsync` snapshot means the
+  digest reports only findings not already stored (no re-reporting); all are still persisted.
+- **Scheduled daemon (036):** `Sweep:RunOnce=false` runs a Generic-Host `SweepBackgroundService` looping the
+  sweep with graceful Ctrl+C/SIGTERM shutdown. (Refactored the wiring into a shared `SweepComposer`.)
+- **Usage guide:** [`docs/USAGE.md`](../../docs/USAGE.md) — all config keys, env vars, run modes, go-live steps.
+
+**The offline backlog is now exhausted** — everything below needs a live key, a Windows host, or owner input.
+
+## Remaining backlog (prioritized — needs key / Windows / owner)
 1. **Live verification (needs `ANTHROPIC_API_KEY` + budget).** Set the key, run `dotnet run` with
    `Pipeline:UseRealApi=true`, confirm a real sweep returns/triages/persists findings. **This is the gate to v1.0.**
 2. **Live server-tool continuation loop.** `AnthropicMessagesClient.CreateMessageTextAsync` does a single
@@ -42,9 +58,9 @@ smoke test passes and the exe runs on Windows.
 4. ~~Wire the email sink into `Program`~~ — **DONE** (spec 032 landed `860873f`): a `DigestNotifierFactory`
    selects `File`/`Email`/`None` by `Notify:Sink` (incomplete/disabled email → `NullDigestNotifier` + a
    warning). Digest delivery is now **config-complete**.
-5. **Scheduling hosted-service / Windows packaging** *(top remaining offline item)* — `SweepHost.RunAsync`
-   already loops on the interval when `RunOnce=false`; wrap it as a proper `IHostedService` / Task Scheduler
-   job with graceful shutdown; then run the `win-x64` single-file exe on **actual Windows** (built, never
+5. **Windows packaging / run on Windows** — the hosted-service daemon is **done** (036); what remains needs a
+   Windows host: register it as a Windows service / Task-Scheduler job, and run the `win-x64` single-file exe on
+   **actual Windows** (built, never
    executed on Windows — dev hosts are Linux). The hosted-service part is offline-buildable; the Windows run is not.
 6. **Open charter items (owner):** confirm the project name, default sweep cadence, and the reputable-source
    seed list for the triage rubric.
